@@ -1,0 +1,9 @@
+(relative-include "headers/banana.h")
+(Project.no-echo)
+
+(register-type Apple)
+(register-type Banana [price Double, size Int])
+
+(defn main []
+  (let [b (Banana.init 2.3 1000)]
+    (IO.println &(Banana.str &b))))

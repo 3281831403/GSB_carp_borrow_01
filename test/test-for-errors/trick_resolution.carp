@@ -1,0 +1,8 @@
+(Project.config "file-path-print-length" "short")
+
+;; This shouldn't resolve!
+(definterface blurgh (Fn [a] Bool))
+(defmodule A (defn blurgh [x] (Int.= x 1)) (implements blurgh A.blurgh))
+(defmodule B (defn blurgh [x] (Float.= x 1.0f)) (implements blurgh B.blurgh))
+(defn f [x] (blurgh x))
+(defn g [] (f "hello"))

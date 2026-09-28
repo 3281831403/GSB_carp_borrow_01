@@ -1,0 +1,160 @@
+(use Char)
+
+(load "Test.carp")
+(use Test)
+
+(deftest test
+  (assert-equal test
+    (String.head " ")
+    \space
+    "space literal works")
+  (assert-equal test
+    (String.head "\t")
+    \tab
+    "tab literal works")
+  (assert-equal test
+    (String.head "\t")
+    \tab
+    "tab literal works")
+  (assert-equal test
+    (String.head "\n")
+    \newline
+    "newline literal works")
+  (assert-equal test
+    (String.head "\b")
+    \backspace
+    "backspace literal works")
+  (assert-equal test
+    (String.head "\r")
+    \return
+    "return literal work")
+  (assert-equal test
+    (String.head "\f")
+    \formfeed
+    "formfeed literal works")
+  (assert-equal test
+    "Π"
+    &(str \u03a0)
+    "unicode literals work")
+  (assert-equal test
+                "a"
+                &(str \a)
+                "str works with ASCII")
+  (assert-equal test
+                "ñ"
+                &(str \ñ)
+                "str works with Latin1")
+  (assert-equal test
+                "😲"
+                &(str \😲)
+                "str works with Emoji")
+  (assert-true test
+                (= \a \a)
+                "char = works as expected I")
+  (assert-true test
+                (= &\a &\a)
+                "char = works as expected II")
+  (assert-true test
+                (/= \a \b)
+                "char /= works as expected I")
+  (assert-true test
+                (/= &\a &\b)
+                "char /= works as expected II")
+  (assert-true test
+                (< \a \b)
+                "char < works as expected I")
+  (assert-true test
+                (< &\a &\b)
+                "char < works as expected II")
+  (assert-true test
+                (> \b \a)
+                "char > works as expected I")
+  (assert-true test
+                (> &\b &\a)
+                "char > works as expected II")
+  (assert-equal test
+                0
+                (meaning &\0)
+                "meaning works as expected 0")
+  (assert-equal test
+                9
+                (meaning &\9)
+                "meaning works as expected 9")
+  (assert-true  test
+                (upper-case? \A)
+                "upper-case? works as expected I")
+  (assert-false test
+                (upper-case? \a)
+                "upper-case? works as expected II")
+  (assert-false test
+                (upper-case? \#)
+                "upper-case? works as expected III")
+  (assert-true  test
+                (lower-case? \a)
+                "lower-case? works as expected I")
+  (assert-false test
+                (lower-case? \A)
+                "lower-case? works as expected II")
+  (assert-false test
+                (lower-case? \#)
+                "lower-case? works as expected III")
+  (assert-true  test
+                (alpha? \a)
+                "alpha? works as expected I")
+  (assert-true  test
+                (alpha? \A)
+                "alpha? works as expected II")
+  (assert-false test
+                (alpha? \#)
+                "alpha? works as expected III")
+  (assert-false test
+                (alpha? \0)
+                "alpha? works as expected III")
+  (assert-false test
+                (num? \a)
+                "num? works as expected I")
+  (assert-false test
+                (num? \A)
+                "num? works as expected II")
+  (assert-false test
+                (num? \#)
+                "num? works as expected III")
+  (assert-true  test
+                (num? \0)
+                "num? works as expected III")
+  (assert-true  test
+                (alphanum? \a)
+                "alphanum? works as expected I")
+  (assert-true  test
+                (alphanum? \A)
+                "alphanum? works as expected II")
+  (assert-false test
+                (alphanum? \#)
+                "alphanum? works as expected III")
+  (assert-true test
+                (alphanum? \0)
+                "alphanum? works as expected III")
+  (assert-equal test
+                48b
+                (to-byte \0)
+                "to-byte works as expected")
+  (assert-equal test
+                \A
+                (from-byte 65b)
+                "from-byte works as expected")
+  (assert-true test
+               (whitespace? \space)
+               "whitespace? works for space")
+  (assert-true test
+               (whitespace? \tab)
+               "whitespace? works for tab")
+  (assert-true test
+               (whitespace? \newline)
+               "whitespace? works for newline")
+  (assert-true test
+               (whitespace? \return)
+               "whitespace? works for return")
+  (assert-false test
+                (whitespace? \a)
+                "whitespace? returns false for non-whitespace")
+)

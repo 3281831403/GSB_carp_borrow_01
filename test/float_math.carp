@@ -1,0 +1,237 @@
+(load "Test.carp")
+
+(use-all Float Test)
+
+(deftest test
+  (assert-equal test
+                -1.0f
+                (neg 1.0f)
+                "neg works as expected")
+  (assert-equal test
+                0.0f
+                (acos 1.0f)
+                "acos works as expected")
+  (assert-equal test
+                0.0f
+                (asin 0.0f)
+                "asin works as expected")
+  (assert-equal test
+                0.0f
+                (atan 0.0f)
+                "atan works as expected")
+  (assert-equal test
+                0.0f
+                (atan2 0.0f 0.0f)
+                "atan2 works as expected")
+  (assert-equal test
+                1.0f
+                (cos 0.0f)
+                "cos works as expected")
+  (assert-equal test
+                1.0f
+                (cosh 0.0f)
+                "cosh works as expected")
+  (assert-equal test
+                1.0f
+                (cosh 0.0f)
+                "cosh works as expected")
+  (assert-equal test
+                0.0f
+                (sin 0.0f)
+                "sin works as expected")
+  (assert-equal test
+                0.0f
+                (sinh 0.0f)
+                "sinh works as expected")
+  (assert-equal test
+                0.0f
+                (tanh 0.0f)
+                "tanh works as expected")
+  (assert-op test
+             1.0f
+             (exp 0.0f)
+             "exp works as expected"
+             Float.approx)
+  (assert-equal test
+                8.0f
+                (ldexp 2.0f 2)
+                "ldexp works as expected")
+  (assert-op test
+             1.0f
+             (log (Double.to-float Double.e))
+             "log works as expected"
+             Float.approx)
+  (assert-equal test
+                1.0f
+                (log10 10.0f)
+                "log10 works as expected")
+  (assert-equal test
+                256.0f
+                (pow 2.0f 8.0f)
+                "pow works as expected")
+  (assert-equal test
+                3.0f
+                (sqrt 9.0f)
+                "sqrt works as expected")
+  (assert-equal test
+                2.0f
+                (ceil 1.3f)
+                "ceil works as expected")
+  (assert-equal test
+                2.0f
+                (abs -2.0f)
+                "abs works as expected")
+  (assert-equal test
+                1.0f
+                (floor 1.9f)
+                "floor works as expected")
+  (assert-equal test
+                1.0f
+                (floor 1.9f)
+                "floor works as expected")
+  (assert-equal test
+                3.0f
+                (+ 1.0f 2.0f)
+                "+ works as expected")
+  (assert-equal test
+                -1.0f
+                (- 1.0f 2.0f)
+                "- works as expected")
+  (assert-equal test
+                2.0f
+                (* 1.0f 2.0f)
+                "* works as expected")
+  (assert-equal test
+                0.5f
+                (/ 1.0f 2.0f)
+                "/ works as expected")
+  (assert-equal test
+                1
+                (to-int 1.9f)
+                "to-int works as expected")
+  (assert-equal test
+                1.0f
+                (from-int 1)
+                "from-int works as expected")
+  (assert-equal test
+                1.0f
+                (copy &1.0f)
+                "copy works as expected")
+  (assert-true test
+               (approx 1.0f 1.000001f)
+               "approx works as expected")
+  (assert-equal test
+                0.0f
+                (zero)
+                "zero works as expected")
+  (assert-equal test
+                2.0f
+                (inc 1.0f)
+                "inc works as expected")
+  (assert-equal test
+                0.0f
+                (dec 1.0f)
+                "dec works as expected")
+  (assert-equal test
+                3.0f
+                (add-ref &1.0f &2.0f)
+                "add-ref works as expected")
+  (assert-op test
+             3.141592f
+             pi
+             "pi constant is correct"
+             Float.approx)
+  (assert-true test
+               (Float.> MAX 0.0f)
+               "MAX is positive")
+  (assert-op test
+             0.3f
+             (mod 9.3f 3.0f)
+             "mod works as expected"
+             Float.approx)
+  (assert-equal test
+                1065353216
+                (to-bytes 1f)
+                "to-bytes works as expected I"
+  )
+  (assert-equal test
+                0
+                (to-bytes 0.0f)
+                "to-bytes works as expected II"
+  )
+  (assert-equal test
+                &(Maybe.Just 10.3f)
+                &(from-string "10.3")
+                "from-string works as expected I"
+  )
+  (assert-equal test
+                &(Maybe.Nothing)
+                &(Float.from-string "abcd")
+                "from-string works as expected II"
+  )
+  (assert-equal test
+                1.0f
+                (sign 5.0f)
+                "sign returns 1.0f for positive")
+  (assert-equal test
+                -1.0f
+                (sign -5.0f)
+                "sign returns -1.0f for negative")
+  (assert-equal test
+                0.0f
+                (sign 0.0f)
+                "sign returns 0.0f for zero")
+  (assert-equal test
+                0.0f
+                (Float.lerp 0.0f 10.0f 0.0f)
+                "lerp returns a at t=0.0f")
+  (assert-equal test
+                10.0f
+                (Float.lerp 0.0f 10.0f 1.0f)
+                "lerp returns b at t=1.0f")
+  (assert-equal test
+                5.0f
+                (Float.lerp 0.0f 10.0f 0.5f)
+                "lerp returns midpoint at t=0.5f")
+  (assert-op test
+             0.0f
+             (tan 0.0f)
+             "tan works as expected"
+             Float.approx)
+  (assert-equal test
+                2
+                (round 1.7f)
+                "round rounds up as expected")
+  (assert-equal test
+                1
+                (round 1.2f)
+                "round rounds down as expected")
+  (assert-equal test
+                5.0f
+                (clamp 0.0f 10.0f 5.0f)
+                "clamp returns value when in range")
+  (assert-equal test
+                0.0f
+                (clamp 0.0f 10.0f -3.0f)
+                "clamp returns min when below range")
+  (assert-equal test
+                10.0f
+                (clamp 0.0f 10.0f 99.0f)
+                "clamp returns max when above range")
+  (let-do [exp 0
+           frac (frexp 8.0f &exp)]
+    (assert-true test
+                 (and (Float.approx frac 0.5f) (= exp 4))
+                 "frexp returns correct fraction and exponent"))
+  (let-do [int-part 0.0f
+           frac (modf 3.7f &int-part)]
+    (assert-true test
+                 (and (Float.approx frac 0.7f) (Float.approx int-part 3.0f))
+                 "modf returns correct fractional and integer parts"))
+  (assert-true test (positive? 1.0f) "positive? works as expected I")
+  (assert-false test (positive? 0.0f) "positive? works as expected II")
+  (assert-false test (positive? -1.0f) "positive? works as expected III")
+  (assert-true test (negative? -1.0f) "negative? works as expected I")
+  (assert-false test (negative? 0.0f) "negative? works as expected II")
+  (assert-false test (negative? 1.0f) "negative? works as expected III")
+)

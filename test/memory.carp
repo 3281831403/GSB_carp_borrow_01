@@ -1,0 +1,606 @@
+(load "Test.carp")
+
+(use Array)
+(use IO)
+(use Int)
+(use Float)
+(use Double)
+(use Array)
+(use System)
+(use Char)
+(use Test)
+
+(Debug.sanitize-addresses)
+
+(defn assert-no-leak [state f descr]
+    (do
+      (Debug.reset-memory-balance!)
+      (f)
+      (assert-equal state 0l (Debug.memory-balance) descr)))
+
+(deftype BlitEnum Copy Move)
+(defmodule BlitEnum
+  (defn blit [x] (the BlitEnum x))
+  (implements blit blit)
+
+  (defn prn [x]
+    (match x
+      (BlitEnum.Copy) @"copy semantics"
+      (BlitEnum.Move) @"move semantics"))
+  (implements prn prn)
+
+  (defn change [x]
+    (match x
+      (BlitEnum.Copy) (BlitEnum.Move)
+      (BlitEnum.Move) (BlitEnum.Copy)))
+)
+
+(defn blit-1 []
+  ;; blit types are not borrow checked and have copy semantics
+  (let-do [enum (BlitEnum.Copy)
+           enum-copy enum]
+    (IO.println &(prn enum))
+    (IO.println &(prn enum-copy))
+    (IO.println &(prn (change enum)))
+    (IO.println &(prn (change enum-copy)))))
+
+(defn scope-1 []
+  (let [s @""]
+    ()))
+
+(defn scope-2 []
+  (let [s @""]
+    (print &s)))
+
+(defn scope-3 []
+  (let [s @""]
+    (do (print "")
+        ())))
+
+;; regression test for issue #597
+;; should compile fine.
+(defn shadow-1 [x]
+  (let [x [1 2 3]
+        y &x]
+    ()))
+
+(defn f []
+  @"")
+
+(defn call-1 []
+  (let [s (f)]
+    ()))
+
+(defn g [s]
+  ())
+
+(defn call-2 []
+  (let [s (g @"")]
+    ()))
+
+(defn id [x]
+  x)
+
+(defn call-3 []
+  (let [s (id (f))]
+    ()))
+
+(defn de-ref [x]
+  @x)
+
+(defn call-4 []
+  (let [s (de-ref "")]
+    ()))
+
+(deftype A [s String])
+
+(defn struct-1 []
+  (let [a (A.init @"")]
+    ()))
+
+(deftype B [a A])
+
+(defn struct-2 []
+  (let [a (A.init @"")
+        b (B.init a)]
+    ()))
+
+(defn struct-3 []
+  (let [a (A.init @"")
+        b (B.init a)
+        c (B.set-a b (A.init @""))]
+    ()))
+
+(defn h [a]
+  (A.set-s a @""))
+
+(defn struct-4 []
+  (let [a (A.init @"")
+        b (B.init a)
+        c (B.update-a b &h)]
+    ()))
+
+(defn struct-5 []
+  (let [a (A.init @"")
+        b (B.init a)
+        c (B.a &b)
+        d (A.s c)]
+    ()))
+
+(defn setting-1 []
+  (let [s @""]
+    (do (set! s @"")
+        ())))
+
+(defn setting-2 []
+  (let [s @""]
+    (do (set! s s)
+        ())))
+
+(defn setting-3 []
+  (let [s @""]
+    (do (set! s @&s)
+        ())))
+
+(defn setting-4 []
+  (let [s @""
+        t @""
+        r &s]
+    (do (set! r &t) ;; Here the set variable is a ref.
+        ())))
+
+(defn set-me [s]
+  (do (for [i 0 10]
+        (set! s @"other"))
+      s))
+
+(defn setting-5 []
+  (let [s @""]
+    (assert (= @"other" (set-me s)))))
+
+(def g1 @"Hello")
+
+(defn global-1 []
+  (set! g1 @"Bye"))
+
+
+(def g2 @"Hello")
+
+(defn-do global-2 []
+  (set! g2 @"How are you?")
+  (set! g2 @"Bye"))
+
+
+;; Free the argument 's' in the branch where it's not deleted manually.
+(defn branch-with-arg [b s]
+  (if b
+    (String.delete s)
+    ()))
+
+(defn if-1 []
+  (branch-with-arg true @""))
+
+(defn if-2 []
+  (branch-with-arg false @""))
+
+
+;; The branch that creates a new value must also delete it.
+(defn do-nothing-with-ref [r]
+  (let [_ (the (Ref a) r)]
+    ()))
+
+(defn create-in-branch [b]
+  (if b
+    ()
+    (do-nothing-with-ref &@"")))
+
+(defn if-3 []
+  (create-in-branch true))
+
+(defn if-4 []
+  (create-in-branch false))
+
+
+;; Free the variable 's' in the branch where it's not deleted manually.
+(defn branch-in-let [b]
+  (let [pre-existing @""]
+    (if b
+      ()
+      (String.delete pre-existing))))
+
+(defn if-5 []
+  (branch-in-let true))
+
+(defn if-6 []
+  (branch-in-let false))
+
+(defn string-slice []
+  (let [s1 @"abcde"
+        s2 (String.slice &s1 0 3)]
+    (assert (= "abc" &s2))))
+
+(defn array-aset []
+  (let [xs [@"a" @"b" @"c"]]
+    (do (aset! &xs 0 @"q")
+        (assert (= &[@"q" @"b" @"c"] &xs)))))
+
+(defn append-ref [a b]
+  (String.append &a b))
+
+(defn array-reduce []
+  (let [xs [@"a" @"b" @"c"]
+        result (Array.reduce &append-ref @"" &xs)]
+    (assert (= @"abc" result))))
+
+(defn array-endo-filter []
+  (let [xs [@"a" @"b" @"c" @"b" @"a" @"c"]
+        result (Array.endo-filter &(fn [x] (= x "b")) xs)]
+    (assert (= &[@"b" @"b"] &result))))
+
+(defn array-copy-filter []
+  (let [xs [@"a" @"b" @"c" @"a" @"c"]
+        result (Array.copy-filter &(fn [x] (= x "b")) &xs)]
+    (assert (= &[@"b"] &result))))
+
+(defn array-first []
+  (let [xs [@"a" @"b" @"c"]
+        result @(Array.unsafe-first &xs)]
+    (assert (= @"a" result))))
+
+(defn array-last []
+  (let [xs [@"a" @"b" @"c"]
+        result @(Array.unsafe-last &xs)]
+    (assert (= @"c" result))))
+
+(defn array-eq-1 []
+  (let [xs [@"a" @"b" @"c"]
+        ys [@"x" @"y" @"z"]]
+    (assert (not (= &xs &ys)))))
+
+(defn array-eq-2 []
+  (let [xs [@"a" @"b" @"c"]
+        ys [@"a" @"b" @"c"]]
+    (assert (= &xs &ys))))
+
+(defn array-maximum []
+  (let [xs [1 7 2 9 3 8 4 6 5]]
+    (assert (= &(Maybe.Just 9) &(maximum &xs)))))
+
+(defn array-minimum []
+  (let [xs [8 4 6 5 1 7 2 9 3]]
+    (assert (= &(Maybe.Just 1) &(minimum &xs)))))
+
+(defn array-sum []
+  (let [xs [10 20 30 40 50]]
+    (assert (= 150 (sum &xs)))))
+
+(defn array-slice []
+  (let [xs [@"a" @"b" @"c" @"d" @"e"]]
+    (assert (= &[@"c" @"d"] &(Array.slice &xs 2 4)))))
+
+(defn array-reverse-1 []
+  (let [xs [@"a" @"b" @"c" @"d" @"e"]]
+    (assert (= &[@"e" @"d" @"c" @"b" @"a"]
+               &(Array.reverse xs)))))
+
+(defn array-index-of []
+  (let [xs [@"a" @"b" @"c" @"d" @"e"]]
+    (assert (= &(Maybe.Just 2) &(Array.index-of &xs "c")))))
+
+(defn array-element-count []
+  (let [xs [@"a" @"b" @"a" @"a" @"b"]]
+    (assert (= 3 (Array.element-count &xs "a")))))
+
+(defn first-letter [s]
+  (String.slice &s 0 1))
+
+(defn array-aupdate []
+  (let [xs [@"abc" @"xyz"]
+        ys (Array.aupdate xs 1 &first-letter)]
+    (assert (= &[@"abc" @"x"] &ys))))
+
+(defn array-aupdate! []
+  (let [xs [@"abc" @"xyz"]]
+    (do
+      (Array.aupdate! &xs 1 &first-letter)
+      (assert (= &[@"abc" @"x"] &xs)))))
+
+(defn array-swap []
+  (let [xs [@"a" @"b" @"c"]
+        ys (Array.swap xs 0 2)]
+    (assert (= &[@"c" @"b" @"a"] &ys))))
+
+(defn array-swap! []
+  (let [xs [@"a" @"b" @"c"]]
+    (do
+      (Array.swap! &xs 0 2)
+      (assert (= &[@"c" @"b" @"a"] &xs)))))
+
+(defn array-range []
+  (let [xs (Array.range-or-default 0 5 1)]
+    (assert (= &[0 1 2 3 4 5] &xs))))
+
+(defmodule ArrayCompareExtension
+  (defn < [a b]
+    (< (Array.length a)
+       (Array.length b)))
+  (implements < ArrayCompareExtension.<)
+  (defn > [a b]
+    (> (Array.length a)
+       (Array.length b))))
+  (implements > ArrayCompareExtension.>)
+(defn array-sort-1 []
+  (let [xs [[0 0] [0 0 0] [0 0 0 0] [0]]
+        ys (Array.sort xs)]
+    (assert (= &[[0] [0 0] [0 0 0] [0 0 0 0]] &ys))))
+
+(defn array-sort-2 []
+  (let [xs [5 2 4 3 1]
+        ys (Array.sort xs)]
+    (assert (= &[1 2 3 4 5] &ys))))
+
+(defn f [] @"Hello")
+
+(defn array-repeat []
+  (let [xs (Array.repeat 4 &f)]
+    (assert (= &[@"Hello" @"Hello" @"Hello" @"Hello"] &xs))))
+
+(defn array-replicate []
+  (let [xs (Array.replicate 4 "Hello")]
+    (assert (= &[@"Hello" @"Hello" @"Hello" @"Hello"] &xs))))
+
+(defn array-copy-map-1 []
+  (let [xs [@"a" @"bb" @"ccc"]
+        ys (Array.copy-map &String.length &xs)]
+    (assert (= &[1 2 3] &ys))))
+
+(defn str-ref [r]
+  (Int.str @r))
+
+(defn array-copy-map-2 []
+  (let [xs [1 2 3 4]
+        ys (Array.copy-map &str-ref &xs)]
+    (assert (= &[@"1" @"2" @"3" @"4"] &ys))))
+
+(defn array-map-reduce []
+  (let [r (map-reduce &(fn [acc x] (Pair.init (append acc x) (append "-" x))) @"" &[@"1" @"2" @"3"])]
+    (assert (= &r &(Pair.init @"123" [@"-1" @"-2" @"-3"])))))
+
+(defn static-array-aupdate! []
+  (let [xs $[@"abc" @"xyz"]]
+    (do
+      (StaticArray.aupdate! xs 1 &first-letter)
+      (assert (= $[@"abc" @"x"] xs)))))
+
+(defn string-append-leak-test []
+  (let [a "abcdef"
+        b "ghijklmnopqrstuvwxyz"]
+       (let [result (String.append a b)]
+            (assert (StringCopy.= result @"abcdefghijklmnopqrstuvwxyz")))))
+
+(defn lambda-1 []
+  (let [s @"X"
+        f (fn [] @&s)] ;; each call needs to produce a new copy of the string
+    (do
+      (assert (= @"X" (f)))
+      (assert (= @"X" (f)))
+      (assert (= @"X" (f))))))
+
+(defn lambda-2 []
+  (let [xs [10 20 30]
+        f (fn [ys] (Array.concat &[@&xs ys]))]
+    (assert (= &[10 20 30 40 50] &(f [40 50])))))
+
+(defn lambda-3 []
+  (let-do [stuff [100 200 300]
+        f (fn [n] (copy (unsafe-nth &stuff n)))]
+    (assert (= 100 (f 0)))
+    (assert (= 200 (f 1)))
+    (assert (= 300 (f 2)))))
+
+(defn lambda-4 []
+  (let-do [stuff [@"A" @"B" @"C"]]
+    (assert (= &[@"X" @"X" @"X"] &(copy-map &(fn [c] @"X") &stuff)))))
+
+(defn lambda-5 []
+  (let-do [stuff [@"A" @"B" @"C"]]
+    (assert (= &[@"X" @"X" @"X"] &(endo-map &(fn [c] @"X") stuff)))))
+
+(defn lambda-6 []
+  (let [v 1
+        adder (fn [x] (+ v x))
+        f @&adder
+        ]
+    (assert (= 11 (f 10)))))
+
+(deftype StrangeThings
+  (Piff [String String])
+  (Puff [String String]))
+
+(defn sumtype-1 []
+  (let [thing (StrangeThings.Piff @"A" @"B")]
+    (assert
+     (= @"B"
+        (match thing
+          (StrangeThings.Piff a b) b
+          (StrangeThings.Puff c d) d)))))
+
+(defn sumtype-2 []
+  (let [thing (StrangeThings.Puff @"A" @"B")]
+    (assert
+     (= @"A"
+        (match thing
+          (StrangeThings.Piff a b) b
+          (StrangeThings.Puff a b) a)))))
+
+(defn sumtype-3 []
+  (let [thing (StrangeThings.Piff @"A" @"B")
+        another-thing @"blah"]
+    (assert
+     (= @"A"
+        (match thing
+          (StrangeThings.Piff a b) a
+          (StrangeThings.Puff c d) another-thing)))))
+
+(defn sumtype-4 []
+  (let [m (Maybe.Just @"Yo")]
+    (assert
+     (= @"Yo"
+        (match m
+          (Maybe.Just x) x
+          (Maybe.Nothing) @"Nope")))))
+
+(defn sumtype-5 []
+  (let [m (Maybe.Nothing)]
+    (assert
+     (= @"Nope"
+        (match m
+          (Maybe.Just x) x
+          (Maybe.Nothing) @"Nope")))))
+
+(deftype Name
+  (Simple [String String])
+  (Fancy [String String String]))
+
+(defn sumtype-6 []
+  (let [m (Name.Simple @"Mrs" @"Robinson")]
+    (assert
+     (= 1
+        (match m
+          (Name.Simple _ _) 1
+          (Name.Fancy _ _ _) 2)))))
+
+(defn sumtype-7 []
+  (let [m (Name.Fancy @"Mr" @"von" @"Plutt")]
+    (assert
+     (= 1
+        (match m
+          _ 1)))))
+
+(deftype Example
+ One
+ (Two [String]))
+
+(defn sumtype-8 []
+  (let-do [ex [(Example.Two @"OKOK")]]
+    (match-ref (Array.unsafe-nth &ex 0)
+     (Example.Two s) (println* s)
+     _ ())))
+
+(deftype Sum One Two)
+
+(defn sumtype-9 []
+    (let [state @"Ok" sumt &(Sum.One)]
+     (match-ref sumt
+      Sum.One (println* &@&state)
+      Sum.Two ())))
+
+(defn sumtype-10 []
+  (let [state 0]
+   (match-ref &(Sum.One)
+    Sum.One (println* ((fn [] @&state)))
+    Sum.Two ())))
+
+(deftype ExampleA
+ One
+  (Two [(Array String)]))
+
+(defn sumtype-11 []
+  (match-ref &(Just (ExampleA.Two [@"OKOK"]))
+   (Just s) ()
+   _ ())
+  )
+
+(defn sumtype-12 []
+  (match (Just (ExampleA.Two [@"OKOK"]))
+   (Just s) ()
+   _ ())
+  )
+
+(defn box-1 []
+  (do (ignore (Box.unbox (Box.init 2)))))
+
+(defn box-2 []
+  (let-do [box (Box.init @"foo")
+           crate @&box]
+    (ignore (Box.unbox box))))
+
+(deftest test
+  (assert-no-leak test scope-1 "scope-1 does not leak")
+  (assert-no-leak test scope-2 "scope-2 does not leak")
+  (assert-no-leak test scope-3 "scope-3 does not leak")
+  (assert-no-leak test call-1 "call-1 does not leak")
+  (assert-no-leak test call-2 "call-2 does not leak")
+  (assert-no-leak test call-3 "call-2 does not leak")
+  (assert-no-leak test call-4 "call-2 does not leak")
+  (assert-no-leak test struct-1 "struct-1 does not leak")
+  (assert-no-leak test struct-2 "struct-2 does not leak")
+  (assert-no-leak test struct-3 "struct-3 does not leak")
+  (assert-no-leak test struct-4 "struct-4 does not leak")
+  (assert-no-leak test struct-5 "struct-5 does not leak")
+  (assert-no-leak test setting-1 "setting-1 does not leak")
+  (assert-no-leak test setting-2 "setting-2 does not leak")
+  (assert-no-leak test setting-3 "setting-3 does not leak")
+  (assert-no-leak test setting-4 "setting-4 does not leak")
+  (assert-no-leak test setting-5 "setting-5 does not leak")
+  (assert-no-leak test global-1 "global-1 does not leak")
+  (assert-no-leak test global-2 "global-2 does not leak")
+  (assert-no-leak test if-1 "if-1 does not leak")
+  (assert-no-leak test if-2 "if-2 does not leak")
+  (assert-no-leak test if-3 "if-3 does not leak")
+  (assert-no-leak test if-4 "if-4 does not leak")
+  (assert-no-leak test if-5 "if-5 does not leak")
+  (assert-no-leak test if-6 "if-6 does not leak")
+  (assert-no-leak test string-slice "string-slice does not leak")
+  (assert-no-leak test array-aset "array-aset does not leak")
+  (assert-no-leak test array-reduce "array-reduce does not leak")
+  (assert-no-leak test array-endo-filter "array-endo-filter does not leak")
+  (assert-no-leak test array-copy-filter "array-copy-filter does not leak")
+  (assert-no-leak test array-first "array-first does not leak")
+  (assert-no-leak test array-last "array-last does not leak")
+  (assert-no-leak test array-eq-1 "array-eq-1 does not leak")
+  (assert-no-leak test array-eq-2 "array-eq-2 does not leak")
+  (assert-no-leak test array-maximum "array-maximum does not leak")
+  (assert-no-leak test array-minimum "array-minimum does not leak")
+  (assert-no-leak test array-sum "array-sum does not leak")
+  (assert-no-leak test array-slice "array-slice does not leak")
+  (assert-no-leak test array-reverse-1 "array-reverse-2 does not leak")
+  (assert-no-leak test array-index-of "array-index-of does not leak")
+  (assert-no-leak test array-element-count "array-element-count does not leak")
+  (assert-no-leak test array-aupdate "array-aupdate does not leak")
+  (assert-no-leak test array-aupdate! "array-aupdate! does not leak")
+  (assert-no-leak test array-swap "array-swap does not leak")
+  (assert-no-leak test array-swap! "array-swap! does not leak")
+  (assert-no-leak test array-range "array-range does not leak")
+  (assert-no-leak test array-sort-1 "array-sort-1 does not leak")
+  (assert-no-leak test array-sort-2 "array-sort-2 does not leak")
+  (assert-no-leak test array-repeat "array-repeat does not leak")
+  (assert-no-leak test array-replicate "array-replicate does not leak")
+  (assert-no-leak test array-copy-map-1 "array-copy-map-1 does not leak")
+  (assert-no-leak test array-copy-map-2 "array-copy-map-2 does not leak")
+  (assert-no-leak test array-map-reduce "array-map-reduce does not leak")
+  (assert-no-leak test static-array-aupdate! "static-array-aupdate! does not leak")
+  (assert-no-leak test string-append-leak-test "String.append does not leak")
+  (assert-no-leak test lambda-1 "lambda-1 does not leak")
+  (assert-no-leak test lambda-2 "lambda-2 does not leak")
+  (assert-no-leak test lambda-3 "lambda-3 does not leak")
+  (assert-no-leak test lambda-4 "lambda-4 does not leak")
+  (assert-no-leak test lambda-5 "lambda-5 does not leak")
+  (assert-no-leak test lambda-6 "lambda-6 does not leak")
+  (assert-no-leak test sumtype-1 "sumtype-1 does not leak")
+  (assert-no-leak test sumtype-2 "sumtype-2 does not leak")
+  (assert-no-leak test sumtype-3 "sumtype-3 does not leak")
+  (assert-no-leak test sumtype-4 "sumtype-4 does not leak")
+  (assert-no-leak test sumtype-5 "sumtype-5 does not leak")
+  (assert-no-leak test sumtype-6 "sumtype-6 does not leak")
+  (assert-no-leak test sumtype-7 "sumtype-7 does not leak")
+  (assert-no-leak test sumtype-8 "sumtype-8 does not leak")
+  (assert-no-leak test sumtype-9 "sumtype-9 does not leak")
+  (assert-no-leak test sumtype-10 "sumtype-10 does not leak")
+  (assert-no-leak test sumtype-11 "sumtype-11 does not leak")
+  (assert-no-leak test sumtype-12 "sumtype-12 does not leak")
+  (assert-no-leak test box-1 "box-1 does not leak")
+  (assert-no-leak test box-2 "box-2 does not leak")
+  (assert-no-leak test blit-1 "blit-1 does not leak")
+  (assert-no-leak test (fn [] (shadow-1 2)) "shadow-1 does not leak")
+  )

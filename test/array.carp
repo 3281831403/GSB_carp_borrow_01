@@ -1,0 +1,485 @@
+(load "Test.carp")
+(use-all Array Test Result)
+
+(defn nested []
+  [[1 2 3]
+   [4 5 6]
+   [7 8 9]])
+
+(defn excl [x] (String.append &x "!"))
+(defn excl-ref [x] (String.append x "!"))
+
+(defn inc-ref [x] (+ @x 1))
+
+(defn make-zero [] 0)
+(defn make-idx [i] i)
+
+(def a (range-or-default 0 9 1))
+(def b (Array.replicate 5 "Hi"))
+
+(deftest test
+  (assert-true test
+               (= &[1 2 3] &[1 2 3])
+               "= works as expected I")
+  (assert-false test
+                (= &[1 2 3] &[1 2 3 4])
+                "= works as expected II")
+  (assert-false test
+                (= &[1 2 3] &[1 2 34])
+                "= works as expected III")
+  (assert-true test
+               (/= &[1 2 3] &[1 2 3 4])
+               "/= works as expected I")
+  (assert-true test
+               (/= &[1 2 4] &[1 2 3])
+               "/= works as expected II")
+  (assert-ref-equal test
+                    [0 0 0 0]
+                    (replicate 4 &0)
+                    "replicate works as expected")
+  (assert-ref-equal test
+                    [0 0 0 0]
+                    (repeat 4 &make-zero)
+                    "repeat works as expected")
+  (assert-ref-equal test
+                    [0 1 2 3]
+                    (repeat-indexed 4 make-idx)
+                    "repeat-indexed works as expected")
+  (assert-equal test
+                1
+                @(unsafe-first &[1 2 3])
+                "unsafe-first works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just 1)
+                    (first &[1 2 3])
+                    "first works as expected")
+  (assert-nothing test
+                  &(first &(the (Array Int) []))
+                  "first works as expected on empty array")
+  (assert-equal test
+                \c
+                @(unsafe-last &[\a \b \c])
+                "unsafe-last works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just \c)
+                    (last &[\a \b \c])
+                    "last works as expected")
+  (assert-nothing test
+                  &(last &(the (Array Int) []))
+                  "last works as expected on empty array")
+  (assert-ref-equal test
+                    [3 2 1]
+                    (reverse [1 2 3])
+                    "reverse works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just 10)
+                    (maximum &(unsafe-from-success (range 1 10 1)))
+                    "maximum works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just 1)
+                    (minimum &(range-or-default 1 10 1))
+                    "minimum works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just (Pair.init 2 1))
+                    (maximum &[(Pair.init 1 3) (Pair.init 2 1) (Pair.init 2 0)])
+                    "maximum works on pairs")
+  (assert-ref-equal test
+                    (Maybe.Just (Pair.init 1 3))
+                    (minimum &[(Pair.init 1 3) (Pair.init 2 1) (Pair.init 2 0)])
+                    "minimum works on pairs")
+  (assert-ref-equal test
+                    (Maybe.Just 3)
+                    (index-of &[1 2 3 4] &4)
+                    "index-of works as expected when element is in the array")
+  (assert-nothing test
+                  &(index-of &[1 2 3 4] &7)
+                  "index-of works as expected when element is not in the array")
+  (assert-equal test
+                55
+                (sum &(range-or-default 1 10 1))
+                "sum works as expected")
+  (assert-ref-equal test
+                    [2 3]
+                    (slice &(range-or-default 1 10 1) 1 3)
+                    "slice works as expected")
+  (assert-ref-equal test
+                    [1 2 3]
+                    (prefix &(range-or-default 1 10 1) 3)
+                    "prefix works as expected")
+  (assert-ref-equal test
+                    [8 9 10]
+                    (suffix &(range-or-default 1 10 1) 7)
+                    "suffix works as expected")
+  (assert-nothing test
+                  &(nth &a 100)
+                  "nth works as expected")
+  (assert-ref-equal test
+                    (Maybe.Just 0)
+                    (nth &a 0)
+                    "nth works as expected")
+  (assert-equal test
+                5
+                @(unsafe-nth &a 5)
+                "unsafe-nth works as expected")
+  (assert-equal test
+                &[1 2 3]
+                (unsafe-nth &(nested) 0)
+                "unsafe-nth works as expected")
+  (assert-ref-equal test
+                    (Success [10 11 12 13 14 15])
+                    (range 10 15 1)
+                    "range works as expected")
+  (assert-ref-equal test
+                    (Success [10.0 10.5 11.0 11.5 12.0])
+                    (range 10.0 12.0 0.5)
+                    "range works as expected on non-integers")
+  (assert-ref-equal test
+                    (Success [10 9 8 7 6 5 4 3 2 1 0])
+                    (range 10 0 -1)
+                    "range backwards works as expected")
+  (assert-ref-equal test
+                    (Success [1 3 5 7 9])
+                    (range 1 10 2)
+                    "range works as expected if we dont exactly hit")
+  (assert-ref-equal test
+                    (Success [10 8 6 4 2])
+                    (range 10 1 -2)
+                    "range backwards works as expected if we dont exactly hit")
+  (assert-error test
+                &(range 10 1 2)
+                "range backwards works as expected if we go forwards instead")
+  (assert-error test
+                &(range 1 10 -2)
+                "range forwards works as expected if we go backwarss instead")
+  (assert-error test
+                &(range 10 1 0)
+                "range works as expected if we use a step size of 0")
+  (assert-ref-equal test
+                    [@"Hi!" @"Hi!" @"Hi!" @"Hi!" @"Hi!"]
+                    (copy-map &excl-ref &b)
+                    "copy-map works as expected")
+  (assert-ref-equal test
+                    [@"Hi!" @"Hi!" @"Hi!" @"Hi!" @"Hi!"]
+                    (endo-map &excl @&b)
+                    "endo-map works as expected")
+  (assert-ref-equal test
+                    [1 2]
+                    (swap [2 1] 0 1)
+                    "swap works as expected")
+  (assert-ref-equal test
+                    [2 1]
+                    (let-do [arr [1 2]]
+                      (Array.swap! &arr 0 1)
+                      arr)
+                    "swap! works as expected")
+  (assert-ref-equal test
+                    [1 3]
+                    (aupdate [1 2] 1 &inc)
+                    "aupdate works as expected")
+  (assert-ref-equal test
+                    [1 3]
+                    (let-do [arr [1 2]]
+                      (aupdate! &arr 1 &inc)
+                      arr)
+                    "aupdate! works as expected")
+  (assert-ref-equal test
+                    [1 2 3 4 5 6 7 8]
+                    (concat &[[1] [2 3] [4 5 6] [7 8]])
+                    "concat works as expected")
+  (assert-ref-equal test
+                    [11 22 33]
+                    (zip &add-ref &[1 2 3 4 5 6 7] &[10 20 30])
+                    "zip works as expected")
+  (assert-equal test
+                "[(Pair 0 @\"a\") (Pair 1 @\"b\") (Pair 2 @\"c\")]"
+                &(str &(Array.enumerated &[@"a" @"b" @"c"]))
+                "enumerated works as expected")
+  (assert-equal test
+                &[]
+                &(Array.enumerated &(the (Array Int) []))
+                "enumerated works with empty arrays")
+  (let-do [arr [1 2 3 4 5 6]
+           exp [1 2 3 4 5 6 7]
+           new (Array.push-back arr 7)]
+          (assert-ref-equal test
+                            exp
+                            new
+                            "Array.push-back works as expected"))
+  (let-do [arr [1 2 3]
+           exp [1 2 3 4 5 6 7 8 9 10 11 12 13 14]]
+    (Array.push-back! &arr 4)
+    (Array.push-back! &arr 5)
+    (Array.push-back! &arr 6)
+    (Array.push-back! &arr 7)
+    (Array.push-back! &arr 8)
+    (Array.push-back! &arr 9)
+    (Array.push-back! &arr 10)
+    (Array.push-back! &arr 11)
+    (Array.push-back! &arr 12)
+    (Array.push-back! &arr 13)
+    (Array.push-back! &arr 14)
+    (assert-ref-equal test
+                      exp
+                      arr
+                      "Array.push-back! works as expected"))
+  (let-do [a [1 2 3 4 5 6]
+           b (Array.pop-back a)
+           c (Array.pop-back b)
+           d (Array.pop-back c)
+           exp [1 2 3]]
+    (assert-ref-equal test
+                      exp
+                      d
+                      "Array.pop-back works as expected"))
+  (let-do [arr [1 2 3 4 5 6]
+           exp [1 2 3]
+           six  (Array.pop-back! &arr)
+           five (Array.pop-back! &arr)
+           four (Array.pop-back! &arr)]
+    (assert-true test
+                 (and  (= &exp &arr)
+                       (= six  6)
+                       (= five 5)
+                       (= four 4))
+                 "Array.pop-back! works as expected"))
+  (assert-ref-equal test
+                    [1 2 3 4 5 6 7 8 9]
+                    (sort (range-or-default 9 1 -1))
+                    "sort works as expected")
+  (let-do [arr [3 2 5]
+           exp [2 3 5]]
+    (sort! &arr)
+    (assert-ref-equal test
+                      exp
+                      arr
+                      "sort! works as expected"))
+  (assert-ref-equal test
+                    [1 2 3 4 5 6 7 8 9]
+                    (sorted &[9 2 1 3 7 8 6 5 4])
+                    "sorted works as expected")
+  (assert-true test
+               (empty? &(the (Array ()) []))
+               "empty? works as expected I")
+  (assert-false test
+                (empty? &[1])
+                "empty? works as expected II")
+  (assert-true test
+               (any? &(fn [x] (= 0 @x)) &(range-or-default 0 10 1))
+               "any? works as expected I")
+  (assert-false test
+                (any? &(fn [x] (= 0 @x)) &(range-or-default 1 10 1))
+                "any? works as expected II")
+  (assert-true test
+               (all? &(fn [x] (< 0 @x)) &(range-or-default 1 10 1))
+               "all? works as expected I")
+  (assert-false test
+                (all? &(fn [x] (= 0 @x)) &(range-or-default 10 1 -1))
+                "all? works as expected II")
+  (assert-ref-equal test
+                    (Maybe.Just 3)
+                    (find &(fn [x] (= 3 @x)) &(range-or-default 1 10 1))
+                    "find works as expected I")
+  (assert-nothing test
+                  &(find &(fn [x] (= 0 @x)) &(range-or-default 1 10 1))
+                  "find works as expected II")
+  (assert-nothing test
+                  &(find-index &(fn [i] (Int.even? @i)) &[1 3 5])
+                  "find-index works I")
+  (assert-ref-equal test
+                    (Maybe.Just 1)
+                    (find-index &(fn [i] (Int.even? @i)) &[1 8 5])
+                    "find-index works II")
+  (assert-equal test
+                2
+                (element-count &[1 4 3 4] &4)
+                "element-count works as expected")
+  (assert-equal test
+                2
+                (predicate-count &[1 8 5 10 3] &(fn [i] (Int.even? @i)))
+                "predicate-count works")
+  (assert-equal test
+                &1
+                (Pointer.to-ref (unsafe-raw &[1 2 3]))
+                "unsafe-raw works")
+  (assert-equal test
+                &2
+                (Pointer.to-ref (Pointer.inc (unsafe-raw &[1 2 3])))
+                "unsafe-raw works II")
+  (assert-ref-equal test
+                    [1 3 5]
+                    (remove &2 [2 1 3 2 5])
+                    "remove works")
+  (assert-ref-equal test
+                    [1 3]
+                    (remove &2 [1 3])
+                    "remove works when element is not found")
+  (assert-ref-equal test
+                    [1 3]
+                    (remove-nth 1 [1 2 3])
+                    "remove-nth works")
+  (assert-ref-equal test
+                    [1.0 1.5 2.0 2.5]
+                    (unreduce 1.0 &(fn [x] (< x 3.0)) &(fn [x] (+ x 0.5)))
+                    "unreduce works")
+  (assert-true test
+                (contains? &[0 1 2] &1)
+                "contains? works as expected I")
+  (assert-false test
+                (contains? &[0 1 2] &100)
+                "contains? works as expected II")
+  (assert-ref-equal test
+                    [1 2 3]
+                    (from-static $[1 2 3])
+                    "from-static works")
+  (assert-ref-equal test
+                    (Pair.init 6 [2 4 6])
+                    (map-reduce &(fn [acc x] (Pair.init (+ @x @acc) (* @x 2))) 0 &[1 2 3])
+                    "map-reduce works")
+  (assert-ref-equal test
+                    [0 1 2 3 4 5]
+                    (scan &(fn [x y] (+ @x @y)) 0 &[1 1 1 1 1])
+                    "scan works")
+  (assert-ref-equal test
+                    [@"" @"a" @"ab" @"abc"]
+                    (Array.scan &(fn [a b] (String.append a b)) @"" &[@"a" @"b" @"c"])
+                    "scan works on managed type")
+  (assert-ref-equal test
+                    [1 2 3 4 5]
+                    (endo-scan &(fn [x y] (+ @x @y)) [1 1 1 1 1])
+                    "endo-scan works")
+  (assert-ref-equal test
+                    [@"a" @"ab" @"abc"]
+                    (Array.endo-scan &String.append [@"a" @"b" @"c"])
+                    "endo-scan works on managed type")
+  (assert-ref-equal test
+                    [1 2 3]
+                    (take-while &(fn [x] (< @x 4)) &[1 2 3 4 5])
+                    "take-while works as expected I")
+  (assert-ref-equal test
+                    (the (Array Int) [])
+                    (take-while &(fn [x] (< @x 0)) &[1 2 3])
+                    "take-while returns empty when no elements match")
+  (assert-ref-equal test
+                    [1 2 3]
+                    (take-while &(fn [x] (< @x 10)) &[1 2 3])
+                    "take-while returns full array when all elements match")
+  (assert-ref-equal test
+                    [4 5]
+                    (drop-while &(fn [x] (< @x 4)) &[1 2 3 4 5])
+                    "drop-while works as expected I")
+  (assert-ref-equal test
+                    [1 2 3]
+                    (drop-while &(fn [x] (< @x 0)) &[1 2 3])
+                    "drop-while returns full array when no elements match")
+  (assert-ref-equal test
+                    (the (Array Int) [])
+                    (drop-while &(fn [x] (< @x 10)) &[1 2 3])
+                    "drop-while returns empty when all elements match")
+  (assert-ref-equal test
+                    [1 1 2 2 3 3]
+                    (Array.flat-map &(fn [x] [@x @x]) &[1 2 3])
+                    "flat-map duplicates elements")
+  (assert-ref-equal test
+                    []
+                    (the (Array Int) (Array.flat-map &(fn [x] [@x @x]) &[]))
+                    "flat-map on empty array")
+  (assert-ref-equal test
+                    [[1 2] [2 3] [3 4] [4 5]]
+                    (Array.windows &[1 2 3 4 5] 2)
+                    "windows size 2")
+  (assert-ref-equal test
+                    [[1 2 3] [2 3 4] [3 4 5]]
+                    (Array.windows &[1 2 3 4 5] 3)
+                    "windows size 3")
+  (assert-ref-equal test
+                    []
+                    (the (Array (Array Int)) (Array.windows &[1 2] 5))
+                    "windows larger than array returns empty")
+  (assert-ref-equal test
+                    [1 0 2 0 3]
+                    (Array.intersperse &[1 2 3] 0)
+                    "intersperse between elements")
+  (assert-ref-equal test
+                    [42]
+                    (Array.intersperse &[42] 0)
+                    "intersperse single element")
+  (assert-ref-equal test
+                    []
+                    (the (Array Int) (Array.intersperse &[] 0))
+                    "intersperse empty array")
+  (assert-ref-equal test
+                    [2 3]
+                    (rest &[1 2 3])
+                    "rest works as expected")
+  (assert-ref-equal test
+                    (the (Array Int) [])
+                    (zero)
+                    "zero works as expected")
+  (assert-equal test
+                6
+                (sum-length &[[1] [2 3] [4 5 6]])
+                "sum-length works as expected")
+  (assert-ref-equal test
+                    [[1 2] [3 4] [5 6]]
+                    (partition &[1 2 3 4 5 6] 2)
+                    "partition into chunks of 2")
+  (assert-ref-equal test
+                    [[1 2 3] [4 5 6]]
+                    (partition &[1 2 3 4 5 6] 3)
+                    "partition into chunks of 3")
+  (assert-ref-equal test
+                    [2 4 6]
+                    (copy-filter &(fn [x] (Int.even? @x)) &[1 2 3 4 5 6])
+                    "copy-filter works as expected")
+  (assert-equal test
+                42
+                (unsafe-nth-value &[42 43] 0)
+                "unsafe-nth-value works as expected")
+
+  (assert-equal test
+                &(Maybe.Just 4)
+                &(find-last &(fn [x] (Int.even? @x)) &[1 2 3 4 5])
+                "find-last works as expected")
+  (assert-equal test
+                &(Maybe.Just 3)
+                &(find-last-index &(fn [x] (Int.even? @x)) &[1 2 3 4 5])
+                "find-last-index works as expected")
+  (assert-equal test
+                &(Maybe.Nothing)
+                &(find-last &(fn [x] (> @x 10)) &[1 2 3 4 5])
+                "find-last returns Nothing when not found")
+
+  (let [arr &[1 2 3 4 5]
+        p (split-by-predicate &(fn [x] (Int.even? @x)) arr)]
+    (assert-ref-equal test
+                      [2 4]
+                      @(Pair.a &p)
+                      "split-by-predicate matching part is correct"))
+
+  (let [arr &[1 2 3 4 5]
+        p (split-by-predicate &(fn [x] (Int.even? @x)) arr)]
+    (assert-ref-equal test
+                      [1 3 5]
+                      @(Pair.b &p)
+                      "split-by-predicate non-matching part is correct"))
+
+  (let [arr &[1 2 3 4 5]]
+    (assert-equal test
+                  &[1 2 3]
+                  &(take 3 arr)
+                  "take works as expected"))
+
+  (let [arr &[1 2 3 4 5]]
+    (assert-equal test
+                  &[4 5]
+                  &(drop 3 arr)
+                  "drop works as expected"))
+
+  (let [a &[1 2 3]
+        b &[10 20 30]
+        c &[100 200 300 400]]
+    (assert-equal test
+                  &[111 222 333]
+                  &(zip-n &(fn [x y z] (+ @x (+ @y @z))) a b c)
+                  "zip-n works as expected with 3 arrays"))
+)

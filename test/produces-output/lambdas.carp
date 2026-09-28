@@ -1,0 +1,98 @@
+(use Array)
+(Project.no-echo)
+
+;; Example 1, copy-map a lambda over an array of strings
+;; (defn example-1 [suffix]
+;;   (println*
+;;    &(Array.copy-map (fn [s] (str* s suffix)) ;; Can use 'suffix' (of type &String) as long as we're in the example-1:s scope
+;;                     &[@"a" @"b" @"c"])))
+
+(defn create-function []
+  (let [x @"hello"
+        f (fn [] @&x)] ; Lambda takes ownership of the string, needs to copy it each time it returns it.
+    f))
+
+;; Example 2, returning a function
+(defn example-2 []
+  (let [f (create-function)]
+    (println* (f))))
+
+;; (defn example-3 []
+;;   (let [lam (fn [x] (let [gah (fn [] 3.3f)]
+;;                       (* 10 x)))]
+;;     (println* (+ (lam 3) (lam 4)))))
+
+;; Example 4, capturing of correct variables
+(def global-variable 10000)
+
+(defn cap [capture-me]
+  (let [and-me 1000]
+    (fn [not-me]
+      (let [nor-me 100]
+        (+ (+ (+ (+ global-variable capture-me) and-me) not-me) nor-me)))))
+
+(defn example-4 []
+  (let [f (cap 10)]
+    (println* (f 1))))
+
+;; Example 5, map value over functions
+;; (defn example-5 [x]
+;;   (Array.endo-map ??? [inc dec (fn [_] x)]))
+
+;; Example 6, handle various kinds of functions together
+(defn pow-to [exponent to]
+  (let [ff1 (fn [] ())
+        ff2 @&ff1
+        to-copy @to
+        upper (to-copy)]
+    (endo-map &(fn [x] (Int.pow x exponent)) (range-or-default 0 upper 1))))
+
+(defn twenty [] 20)
+
+(defn example-6 []
+  (println* (ref (pow-to 3 &twenty))))
+
+;; Example 7, functions as members in structs
+(deftype Blah [function (Fn [] ())])
+
+(defn hello-hello [] (println* "Hello, hello!"))
+
+(defn example-7 []
+  (let [b (Blah.init hello-hello)
+        f @(Blah.function &b)]
+    (f)))
+
+;; Example 8, mapping normal (non-lambda) function over a list of strings
+(defn example-8 []
+  (let [strings [@"a" @"bb" @"ccc"]]
+    (println* &(Array.copy-map &String.length &strings))))
+
+;; Example 9, capturing refs to other functions
+(defn call-with-1 [f]
+  (~f 1))
+
+(defn wrapper [f]
+  (call-with-1 &(fn [x] (~f x))))
+
+(defn example-9 []
+  (println* (wrapper &Int.inc)))
+
+;; Example 10, more realistic example of capturing ref to function
+(defn update-bs [arr f]
+  (Array.endo-map &(fn [p] (Pair.update-b p f)) arr))
+
+(defn example-10 []
+  (let [arr [(Pair.init 1 1)]]
+    (println* &(update-bs arr &Int.inc))))
+
+(defn-do main []
+  ;;(example-1 "!")
+  (example-2)
+  ;;(example-3)
+  (example-4)
+  ;;(example-5)
+  (example-6)
+  (example-7)
+  (example-8)
+  (example-9)
+  (example-10))

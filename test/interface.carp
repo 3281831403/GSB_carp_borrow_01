@@ -1,0 +1,77 @@
+;; Test Interfaces
+
+(load "Test.carp")
+(use Test)
+
+(definterface foo (Fn [a] Int))
+
+;; A module implements an interface using implements.
+;; Implementations don't need to share names with interfaces.
+(defmodule A
+  (defn bar [x] x)
+  (implements foo A.bar))
+
+;; Implementations may be declared before definitions
+;; like `doc`, the name is relative to the module environment
+(defmodule B
+  (implements foo baz)
+  (defn baz [y] (if y 5 0)))
+
+;; Interfaces may be implemented retroactively
+;; global functions can also implement interfaces.
+(sig gojira (Fn [&String] String))
+(defn gojira [s] @s)
+(implements monster gojira)
+
+(definterface monster (Fn [a] String))
+
+;; An interface name can be used as a default implementation
+(defn monster [scary?] (if scary? @"RAWR" @"meow"))
+(implements monster monster)
+
+;; If multiple implementations of the same concrete type are provided,
+;; one overwrites the other.
+(defn laugh-monster [times] (String.repeat times "LOL"))
+(implements monster laugh-monster)
+(defn pikachu [times] (String.repeat times "pika"))
+(implements monster pikachu)
+
+;; issue #1414, make sure we don't overwrite the lookup mode of implementations
+(definterface FOO a)
+(defmodule Foo
+  (register FOO Int "CARP_INT_MAX")
+  (implements FOO FOO)
+)
+(defmodule Bar
+  (defn bar []
+    FOO)
+)
+
+(deftest test
+  (assert-equal test
+    &2
+    &(foo 2) ;; A.foo
+    "Implements works as expected.")
+  (assert-equal test
+    &5
+    &(foo true) ;; B.foo
+    "Implementations can be declared before definitions.")
+  (assert-equal test
+    "SKRYEEE"
+    &(monster "SKRYEEE")
+    "Interfaces can be implemented retroactively.")
+  (assert-equal test
+    "meow"
+    &(monster false)
+    "Implementations may be global, and an implementation with the same name may
+    be used as a default.")
+  (assert-equal test
+    "pikapikapika"
+    &(monster 3)
+    "Implementations may be overwritten, when multiple implementations of the same type
+     are provided.")
+  (assert-equal test
+    Int.MAX
+    (Bar.bar)
+    "regression for issue #1414")
+)

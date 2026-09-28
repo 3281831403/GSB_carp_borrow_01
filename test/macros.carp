@@ -1,0 +1,412 @@
+(load "Test.carp")
+(use Test)
+
+; this won’t show up in the test output, sadly
+(const-assert true "const-assert works I")
+(const-assert (= 1 1) "const-assert works II")
+(const-assert (= false (= 1 2)) "const-assert works III")
+
+(defn test-let-do []
+  (let-do [x 1]
+    (set! x (+ x 1))
+    (= x 2)))
+
+(defn test-while-do []
+  (let-do [i 0
+           x 0]
+    (while-do (< i 10)
+      (set! x (+ x 2))
+      (set! i (+ i 1)))
+    (= x 20)))
+
+(defn test-comment []
+  (let-do [x 1]
+    (comment (set! x (+ x 1)))
+    (= x 1)))
+
+(defn test-case-dflt []
+  (case 1
+    2 false
+    true))
+
+(defn test-case-select []
+  (case 1
+    1 true
+    false))
+
+(defn test-case-multi []
+  (case 1
+    2 false
+    (:or 1 3) true
+    false))
+
+(defmacro test-not [a] (not a))
+(defmacro test-< [a b] (< a b))
+(defmacro test-> [a b] (> a b))
+(defmacro test-= [a b] (= a b))
+
+(defmacro test-gensym []
+  (let [x (gensym)]
+    (list 'let (array x 1) (list '= x 1))))
+
+(defmacro test-read-file []
+  (read-file "test/fixture_file.txt"))
+
+(defmacro test-gensym-with []
+  (let [x (gensym-with 'a)]
+    (list 'let (array x 1) (list '= x 1))))
+
+(defmacro test-map []
+  (let [mapped (Dynamic.map length '((a) (b c) (d e f)))]
+    (and  (= 1 (Dynamic.car mapped)) (= 2 (Dynamic.cadr mapped))
+          (= 3 (Dynamic.caddr mapped)))))
+
+(defmacro test-zip []
+  (let [zipped (Dynamic.zip array '('a 'd) '('c 'o) '('e 'g))]
+    (and (= 'ace (Symbol.concat (eval (Dynamic.car  zipped))))
+         (= 'dog (Symbol.concat (eval (Dynamic.cadr zipped)))))))
+
+(defmodule TestDyn
+  (defndynamic x [] true))
+
+(defndynamic test-dynamic-use- []
+  (do
+    (use TestDyn)
+    (x)))
+
+(defmacro test-dynamic-use []
+  (test-dynamic-use-))
+
+(if (= "aarch64" target-arch)
+  (Unsafe.C.asm addr "mov %w0, %w1\\n" "add %w0, %w0, #1\\n" : "=r" (dst) : "r" (src))
+  (Unsafe.C.asm addr "mov %1, %0\\n" "add $1, %0\\n" : "=r" (dst) : "r" (src)))
+
+(deftest test
+  (assert-true test
+               (test-let-do)
+               "let-do works as expected")
+  (assert-true test
+               (test-while-do)
+               "while-do works as expected")
+  (assert-true test
+               (test-case-dflt)
+               "case correctly selects default")
+  (assert-true test
+               (test-case-select)
+               "case correctly selects branch")
+  (assert-true test
+               (test-case-multi)
+               "case correctly selects multibranch")
+  (assert-true test
+               (test-comment)
+               "comment ignores input")
+  (assert-true test
+               (test-not false)
+               "not macro works as expected")
+  (assert-false test
+                (and false true)
+                "and macro works as expected I")
+  (assert-true test
+               (and true true)
+               "and macro works as expected II")
+  (assert-false test
+               (and false (do (System.exit 1) false))
+               "and macro shortcircuits")
+  (assert-false test
+               (or false false)
+               "or macro works as expected I")
+  (assert-true test
+               (or false true)
+               "or macro works as expected II")
+  (assert-true test
+               (or true (do (System.exit 2) false))
+               "or macro shortcircuits")
+  (assert-true test
+               (or true true)
+               "or macro works as expected III")
+  (assert-true test
+               (test-< 1 2)
+               "< macro works as expected on ints I")
+  (assert-false test
+                (test-< 2 2)
+                "< macro works as expected on ints II")
+  (assert-true test
+               (test-< 1l 2l)
+               "< macro works as expected on longs I")
+  (assert-false test
+                (test-< 2l 2l)
+                "< macro works as expected on longs II")
+  (assert-true test
+               (test-< 1.0 2.0)
+               "< macro works as expected on doubles I")
+  (assert-false test
+                (test-< 2.0 2.0)
+                "< macro works as expected on doubles II")
+  (assert-true test
+               (test-< 1.0f 2.0f)
+               "< macro works as expected on floats I")
+  (assert-false test
+                (test-< 2.0f 2.0f)
+                "< macro works as expected on floats II")
+  (assert-false test
+                (test-< 3.0 2.0f)
+                "< macro works as expected across types I")
+  (assert-true test
+               (test-< 1l 2.0f)
+               "< macro works as expected across types II")
+  (assert-true test
+               (test-> 2 1)
+               "> macro works as expected on ints I")
+  (assert-false test
+                (test-> 2 2)
+                "> macro works as expected on ints II")
+  (assert-true test
+               (test-> 2l 1l)
+               "> macro works as expected on longs I")
+  (assert-false test
+                (test-> 2l 2l)
+                "> macro works as expected on longs II")
+  (assert-true test
+               (test-> 2.0 1.0)
+               "> macro works as expected on doubles I")
+  (assert-false test
+                (test-> 2.0 2.0)
+                "> macro works as expected on doubles II")
+  (assert-true test
+               (test-> 2.0f 1.0f)
+               "> macro works as expected on floats I")
+  (assert-false test
+                (test-> 2.0f 2.0f)
+                "> macro works as expected on floats II")
+  (assert-true test
+               (test-> 2 1.0f)
+               "> macro works as expected across types I")
+  (assert-false test
+                (test-> 2.0 3l)
+                "> macro works as expected across types II")
+
+  (assert-true test
+               (test-= 2 2)
+               "= macro works as expected on ints I")
+  (assert-false test
+                (test-= 2 1)
+                "= macro works as expected on ints II")
+  (assert-true test
+               (test-= 2l 2l)
+               "= macro works as expected on longs I")
+  (assert-false test
+                (test-= 2l 1l)
+                "= macro works as expected on longs II")
+  (assert-true test
+               (test-= 2.0 2.0)
+               "= macro works as expected on doubles I")
+  (assert-false test
+                (test-= 2.0 1.0)
+                "= macro works as expected on doubles II")
+  (assert-true test
+               (test-= 2.0f 2.0f)
+               "= macro works as expected on floats I")
+  (assert-false test
+                (test-= 2.0f 1.0f)
+                "= macro works as expected on floats II")
+  (assert-true test
+               (test-= 2.0f 2)
+               "= macro works as expected across numeric types I")
+  (assert-false test
+                (test-= 2.0 1l)
+                "= macro works as expected across numeric types II")
+  (assert-true test
+               (test-= "erik" "erik")
+               "= macro works as expected on strings I")
+  (assert-false test
+                (test-= "erik" "svedäng")
+                "= macro works as expected on strings II")
+  (assert-true test
+               (test-= veit veit)
+               "= macro works as expected on symbols I")
+  (assert-false test
+                (test-= veit heller)
+                "= macro works as expected on symbols II")
+  (assert-false test
+                (test-= veit "veit")
+                "= macro works as expected across types")
+  (assert-false test 
+                (and true true false)
+                "vararg-and macro works as expected I")
+  (assert-true test 
+               (and true true true)
+               "vararg-and macro works as expected II")
+  (assert-false test 
+                (or false false false)
+                "vararg-or macro works as expected I")
+  (assert-true test 
+               (or true false true)
+               "vararg-or macro works as expected II")
+  (assert-equal test
+                "1 thing 2 things"
+                &(str* 1 " thing " 2 " things")
+                "str* macro works as expected")
+  (assert-dynamic-equal test
+                        false
+                        (Project.get-config "echo-c")
+                        "Project.get-config works as expected I")
+  (assert-dynamic-equal test
+                        "Untitled"
+                        (Project.get-config "title")
+                        "Project.get-config works as expected II")
+  (assert-dynamic-equal test
+                        'xy
+                        (Symbol.concat ['x 'y])
+                        "Symbol.concat works as expected")
+  (assert-equal test
+                "test file contents\n"
+                (test-read-file)
+                "Dynamic.read-file works as expected")
+  (assert-true test
+               (test-gensym-with)
+               "gensym-with works as expected")
+  (assert-true test
+               (test-gensym)
+               "gensym works as expected")
+  (assert-true test
+               (test-map)
+               "map works as expected")
+  (assert-true test
+               (test-zip)
+               "zip works as expected")
+  (assert-dynamic-equal test
+                        3
+                        ((Dynamic.curry + 1) 2)
+                        "curry works as expected")
+  (assert-dynamic-equal test
+                        'Foo.Bar
+                        ((Dynamic.flip Symbol.prefix) 'Bar 'Foo)
+                        "filp works as expected")
+  (assert-dynamic-equal test
+                        '()
+                        ((Dynamic.compose Dynamic.empty Dynamic.take) 2 '(1 2 3 4))
+                        "compose works as expected")
+  (assert-dynamic-equal test
+                        10
+                        (Dynamic.reduce + 0 '(1 2 3 4))
+                        "reduce works as expected")
+  (assert-dynamic-equal test
+                        '(1 2 3 4)
+                        (Dynamic.unreduce (curry + 1) 0 4 (list))
+                        "unreduce works as expected")
+  (assert-dynamic-equal test
+                        '(a a a a)
+                        (Dynamic.filter (fn [x] (= 'a x)) '(a b a b a b a b))
+                        "filter works as expected")
+  (assert-dynamic-equal test
+                        '(4 3 2 1)
+                        (Dynamic.reverse '(1 2 3 4))
+                        "reverse works as expected")
+  (assert-dynamic-equal test
+                        '()
+                        (Dynamic.empty '(1 2 3 4))
+                        "empty works as expected")
+  (assert-dynamic-equal test
+                        []
+                        (Dynamic.empty [1 2 3 4])
+                        "empty works as expected")
+  (assert-dynamic-equal test
+                        1
+                        (car (Dynamic.take 2 '(1 2 3 4)))
+                        "take works as expected I")
+  (assert-dynamic-equal test
+                        '()
+                        (cddr (Dynamic.take 2 '(1 2 3 4)))
+                        "take works as expected II")
+  (assert-dynamic-equal test
+                        45
+                        (let-do [acc 0]
+                          (for [i 0 10]
+                            (set! acc (+ acc i)))
+                          acc)
+                        "while works as expected in dynamic code")
+  (assert-ref-equal test
+                    @"oy"
+                    (let [x @"hi"]
+                      @(doto &x
+                        (string-set! 0 \o)
+                        (string-set! 1 \y)))
+                    "doto works as expected")
+  (assert-ref-equal test
+                    @"oy"
+                    (doto-ref @"hi"
+                      (string-set! 0 \o)
+                      (string-set! 1 \y))
+                    "doto-ref works as expected")
+  (assert-true test
+               (test-dynamic-use)
+               "use works as expected in dynamic contexts")
+  (assert-dynamic-equal test
+                        6
+                        (let [x 1]
+                          (eval
+                            (quasiquote
+                              (+ (unquote x) (+ (unquote-splicing (map inc [1 2])))))))
+                        "quasiquote works as expected")
+  (assert-dynamic-equal test
+                        6
+                        (let [x 1]
+                          (eval `(+ %x (+ %@(map inc [1 2])))))
+                        "quasiquote reader works as expected")
+  (assert-dynamic-equal test
+                        12
+                        (eval (postwalk (fn [x] (if (= x '+) '* x))
+                                        '(+ 2 (+ 2 3))))
+                        "postwalk works as expected")
+  (assert-dynamic-equal test
+                        12
+                        (eval (prewalk (fn [x] (if (= x '+) '* x))
+                                       '(+ 2 (+ 2 3))))
+                        "prewalk works as expected")
+  (assert-dynamic-equal test
+                        12
+                        (eval (walk-replace '((+ *)) '(+ 2 (+ 2 3))))
+                        "walk-replace works as expected")
+  (assert-dynamic-equal test
+                        -1
+                        (neg 1)
+                        "Dynamic.neg works as expected")
+  (assert-dynamic-equal test
+                        4
+                        (cxr '(1 a 3 d) '(1 2 3 4))
+                        "Dynamic.cxr works as expected I")
+  (assert-dynamic-equal test
+                        1
+                        (cxr '(0 d 1 a) '(1 2 3 4))
+                        "Dynamic.cxr works as expected II")
+  (assert-dynamic-equal test
+                        3
+                        (round 3.4)
+                        "Dynamic.round works as expected I")
+  (assert-dynamic-equal test
+                        3
+                        (round 2.51)
+                        "Dynamic.round works as expected II")
+  (assert-dynamic-equal test
+                        '("h" "e" "l" "l" "o")
+                        (String.to-list "hello")
+                        "Dynamic.String.to-list works as expected")
+  (assert-dynamic-equal test
+                        '["h" "e" "l" "l" "o"]
+                        (String.to-array "hello")
+                        "Dynamic.String.to-array works as expected")
+  (assert-equal test
+                2
+                (let-do [src 1 dst 0]
+                  (addr)
+                  dst)
+                "asm works")
+  (let-do [x 0]
+    (do
+      (when-do true (set! x 1) (set! x (inc x)))
+      (assert-equal test 2 x "when-do executes multi-form body when true")))
+  (let-do [x 0]
+    (do
+      (unless-do false (set! x 1) (set! x (inc x)))
+      (assert-equal test 2 x "unless-do executes multi-form body when false")))
+)

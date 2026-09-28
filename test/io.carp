@@ -1,0 +1,58 @@
+(load "Test.carp")
+(use-all IO Test)
+
+(defn write-then-read [content file-name]
+  (let [ written? (IO.write-file content file-name) ]
+    (if (Result.error? &written?)
+      (Result.unsafe-from-error written?)
+      (let-do [ read? (IO.read-file file-name) ]
+        (IO.Raw.unlink! file-name)
+        (if (Result.error? &read?)
+          (Result.unsafe-from-error   read?)
+          (Result.unsafe-from-success read?)  )))))
+
+(deftest test
+  (assert-nothing test
+                  &(IO.getenv "thisdoesnotexist")
+                  "getenv works on non-existant variable"
+  )
+  (assert-just test
+               &(IO.getenv "PATH")
+               "getenv works on existant variable"
+  )
+  (let [ data "Icke\n\tdette\n\tkieke mal,\nOochen, Flesch und Beene." ]  ; include \n in test data!
+    (assert-equal test
+                  data
+                  &(write-then-read data "io_carp_testdata.txt")
+                  "write-file then read-file"  ))
+  (let [ file-name "io_carp_append_testdata.txt"
+         first     "hello"
+         second    " world" ]
+    (do
+      (ignore (IO.write-file first file-name))
+      (ignore (IO.append-file second file-name))
+      (let-do [ result (IO.read-file file-name) ]
+        (IO.Raw.unlink! file-name)
+        (assert-equal test
+                      "hello world"
+                      &(Result.unsafe-from-success result)
+                      "append-file appends to existing file"))))
+  ; IO.Raw.open / fstat-size / close-fd
+  (assert-true test
+    (let-do [fd (IO.Raw.open "test/io.carp" IO.Raw.O-RDONLY)
+             ok (> fd 0)
+             sz (IO.Raw.fstat-size fd)]
+      (ignore (IO.Raw.close-fd fd))
+      (and ok (> sz 0l)))
+    "IO.Raw.open, fstat-size, close-fd round-trip")
+  (assert-true test
+    (< (IO.Raw.open "/nonexistent/path" IO.Raw.O-RDONLY) 0)
+    "IO.Raw.open returns negative for missing file")
+  ; IO.Raw.fileno
+  (assert-true test
+    (let-do [fp (IO.Raw.fopen "test/io.carp" "r")
+             fd (IO.Raw.fileno fp)]
+      (IO.Raw.fclose! fp)
+      (> fd 0))
+    "IO.Raw.fileno returns positive fd for open FILE")
+)

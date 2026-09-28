@@ -1,0 +1,206 @@
+(load "Test.carp")
+(use-all Maybe Test)
+
+(def test-inspect-val 0)
+
+(deftest test
+  (assert-true test
+               (nothing? &(the (Maybe Int) (Nothing)))
+               "nothing? works on Nothing"
+  )
+  (assert-false test
+                (nothing? &(Just 1))
+                "nothing? works on Just"
+  )
+  (assert-true test
+               (just? &(Just 1))
+               "just? works on Just"
+  )
+  (assert-false test
+                (just? &(the (Maybe Int) (Nothing)))
+                "just? works on Nothing"
+  )
+  (assert-equal test
+                0
+                (get-tag &(Just 1))
+                "tag works on Just"
+  )
+  (assert-equal test
+                1
+                (get-tag &(the (Maybe Int) (Nothing)))
+                "tag works on Nothing"
+  )
+  (assert-equal test
+                1
+                (from (Just 1) 0)
+                "from works on Just"
+  )
+  (assert-equal test
+                0
+                (from (the (Maybe Int) (Nothing)) 0)
+                "from works on Nothing"
+  )
+  (assert-equal test
+                1
+                (unsafe-from (Just 1))
+                "unsafe-from works on Just"
+  )
+  (assert-equal test
+                2
+                (from (apply (Just 1) &Int.inc) 0)
+                "apply works on Just"
+  )
+  (assert-equal test
+                0
+                (from (apply (the (Maybe Int) (Nothing)) &Int.inc) 0)
+                "apply works on Nothing"
+  )
+  (assert-equal test
+                10
+                (or-zero (Just 10))
+                "or-zero works on Just"
+  )
+  (assert-equal test
+                0
+                (or-zero (the (Maybe Int) (Nothing)))
+                "or-zero works on Nothing"
+  )
+  (assert-equal test
+                &(Nothing)
+                &(the (Maybe Int) (zero))
+                "zero works"
+  )
+  (assert-equal test
+                &(Result.Success 1)
+                &(to-result (Just 1) @"error")
+                "to-result works on Just"
+  )
+  (assert-equal test
+                &(the (Result Int String) (Result.Error @"error"))
+                &(to-result (Nothing) @"error")
+                "to-result works on Nothing"
+  )
+  (assert-equal test
+                1
+                @(Pointer.to-ref (unsafe-ptr &(Just 1)))
+                "unsafe-ptr works on Just"
+  )
+  (assert-true test
+               (null? (unsafe-ptr &(the (Maybe Int) (Nothing))))
+               "unsafe-ptr works on Nothing"
+  )
+  (assert-equal test
+                &(Just 0)
+                &(from-ptr (Pointer.address &(zero)))
+                "from-ptr works on Ptr/Just"
+  )
+  (assert-equal test
+                &(Nothing)
+                &(the (Maybe Int) (from-ptr NULL))
+                "from-ptr works on NULL/Nothing"
+                )
+
+  (assert-equal test
+                123
+                (match (the (Maybe (Maybe Int)) (Just (Just 123)))
+                  Nothing 0
+                  (Just (Nothing)) 0
+                  (Just (Just x)) x)
+                "Matching on nested Maybes."
+                )
+
+  (assert-equal test
+                123
+                (match (the (Maybe (Maybe (Maybe Int))) (Just (Just (Nothing))))
+                  Nothing 0
+                  (Just (Nothing)) 0
+                  (Just (Just (Just _))) 0
+                  (Just (Just (Nothing))) 123
+                  )
+                "Matching on nested Maybes."
+                )
+  (assert-equal test
+                2
+                (from (map (Just 1) &Int.inc) 0)
+                "map works on Just")
+  (assert-equal test
+                0
+                (from (map (the (Maybe Int) (Nothing)) &Int.inc) 0)
+                "map works on Nothing")
+  (assert-equal test
+                &(Just 2)
+                &(and-then (Just 1) &(fn [x] (Just (Int.inc x))))
+                "and-then works on Just")
+  (assert-equal test
+                &(the (Maybe Int) (Nothing))
+                &(and-then (Just 1) &(fn [x] (the (Maybe Int) (Nothing))))
+                "and-then returns Nothing when f returns Nothing")
+  (assert-equal test
+                &(the (Maybe Int) (Nothing))
+                &(and-then (the (Maybe Int) (Nothing)) &(fn [x] (Just (Int.inc x))))
+                "and-then works on Nothing")
+  (assert-equal test
+                &(Just 1)
+                &(or-else (Just 1) &(fn [] (Just 0)))
+                "or-else returns Just unchanged")
+  (assert-equal test
+                &(Just 0)
+                &(or-else (the (Maybe Int) (Nothing)) &(fn [] (Just 0)))
+                "or-else calls f on Nothing")
+  (assert-equal test
+                1
+                (unwrap-or-else (Just 1) &(fn [] 0))
+                "unwrap-or-else works on Just")
+  (assert-equal test
+                0
+                (unwrap-or-else (the (Maybe Int) (Nothing)) &(fn [] 0))
+                "unwrap-or-else works on Nothing")
+  (assert-equal test
+                &(Just 4)
+                &(filter (Just 4) &(fn [x] (Int.even? @x)))
+                "filter keeps Just when predicate passes")
+  (assert-equal test
+                &(the (Maybe Int) (Nothing))
+                &(filter (Just 3) &(fn [x] (Int.even? @x)))
+                "filter returns Nothing when predicate fails")
+  (assert-equal test
+                &(the (Maybe Int) (Nothing))
+                &(filter (the (Maybe Int) (Nothing)) &(fn [x] (Int.even? @x)))
+                "filter works on Nothing")
+
+  (assert-equal test
+                &(Just 10)
+                &(flatten (Just (Just 10)))
+                "flatten works on Just Just")
+  (assert-equal test
+                &(the (Maybe Int) (Nothing))
+                &(flatten (the (Maybe (Maybe Int)) (Just (Nothing))))
+                "flatten works on Just Nothing")
+
+  (assert-equal test
+                10
+                (expect (Just 10) "should not fail")
+                "expect works on Just")
+
+  (do
+    (ignore (inspect (Just 10) &(fn [v] (set! test-inspect-val @v))))
+    (assert-equal test 10 test-inspect-val "inspect works on Just"))
+
+  (assert-equal test
+                20
+                (map-or (Just 10) 0 &(fn [v] (* v 2)))
+                "map-or works on Just")
+  (assert-equal test
+                0
+                (map-or (the (Maybe Int) (Nothing)) 0 &(fn [v] (* v 2)))
+                "map-or works on Nothing")
+
+  (assert-equal test
+                20
+                (map-or-else (Just 10) &(fn [] 0) &(fn [v] (* v 2)))
+                "map-or-else works on Just")
+  (assert-equal test
+                0
+                (map-or-else (the (Maybe Int) (Nothing)) &(fn [] 0) &(fn [v] (* v 2)))
+                "map-or-else works on Nothing")
+)

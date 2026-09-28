@@ -1,0 +1,515 @@
+(use Map)
+
+(load "Test.carp")
+(use Test)
+
+(def for-each-sum 0)
+
+(deftest test
+  (assert-equal test
+                "2"
+                &(Map.get &(Map.put (Map.create) "1" "2") "1")
+                "basic put and get works"
+  )
+  (assert-equal test
+                "3"
+                &(Map.get &(Map.put (Map.put (Map.create) "1" "2") "1" "3") "1")
+                "put, update and get"
+  )
+  (assert-equal test
+                "2"
+                &(Map.get &(Map.put (Map.create) &-7 "2") &-7)
+                "basic put and get works with negative keys"
+  )
+  (assert-equal test
+                "2"
+                &(let-do [em (Map.create)]
+                  (Map.put! &em "1" "2")
+                  (Map.get &em "1"))
+                "put! works"
+  )
+  (assert-equal test
+                ""
+                &(Map.get &(Map.create) "1")
+                "get works with defaults"
+  )
+  (assert-equal test
+                &(the (Maybe Int) (Maybe.Nothing))
+                &(Map.get-maybe &(Map.create) "1")
+                "get works with maybe"
+  )
+  (assert-equal test
+                &(Maybe.Just @"2")
+                &(Map.get-maybe &(Map.put (Map.create) "1" "2") "1")
+                "get works with maybe"
+  )
+  (assert-equal test
+                true
+                (Map.empty? &(Map.update (Map.create) "x" &Int.inc))
+                "update works with empty map"
+  )
+  (assert-equal test
+                2
+                (Map.get &(Map.update {@"x" 1} "x" &Int.inc) "x")
+                "update works"
+  )
+  (assert-equal test
+                \x ;; using char because it has no (zero) operation
+                (Map.get-with-default &{1 \x} &1 &\_)
+                "get-with-default works I"
+  )
+  (assert-equal test
+                \_
+                (Map.get-with-default &{1 \x} &2 &\_)
+                "get-with-default works II"
+  )
+  (assert-equal test
+                8
+                (Map.get &(Map.update-with-default (Map.create) "x" &Int.inc 7) "x")
+                "update-with-default works with empty map"
+  )
+  (assert-equal test
+                2
+                (Map.get &(Map.update-with-default {@"x" 1} "x" &Int.inc 7) "x")
+                "update-with-default works"
+  )
+  (assert-equal test
+                1
+                (Map.length &(Map.put (Map.create) "1" "2"))
+                "length works"
+  )
+  (assert-equal test
+                0
+                (Map.length &(the (Map Int Int) (Map.create)))
+                "length works on empty map"
+  )
+  (assert-equal test
+                false
+                (Map.contains? &(the (Map String Int) (Map.create)) "1")
+                "contains? works on empty map"
+  )
+  (assert-equal test
+                true
+                (Map.contains? &(Map.put (Map.create) "1" "2") "1")
+                "contains? works"
+  )
+  (assert-equal test
+                true
+                (Map.contains? &(Map.put (Map.create) &-7 "2") &-7)
+                "contains? works with negative keys"
+  )
+  (assert-equal test
+                false
+                (Map.contains? &(Map.put (Map.create) &1 "2") &-7)
+                "contains? works with negative keys"
+  )
+  (assert-equal test
+                true
+                (Map.empty? &(the (Map Int Int) (Map.create)))
+                "empty? works on empty map"
+  )
+  (assert-equal test
+                false
+                (Map.empty? &(Map.put (Map.create) "1" "2"))
+                "empty? works"
+  )
+  (assert-equal test
+                true
+                (Map.empty? &(Map.remove (Map.put (Map.create) "1" "2") "1"))
+                "remove works"
+  )
+  (assert-equal test
+                true
+                (let-do [m (Map.put (Map.create) "a" "b")]
+                  (Map.remove! &m "a")
+                  (Map.empty? &m))
+                "remove! works"
+  )
+  (assert-equal test
+                1
+                (let-do [m (Map.put (Map.put (Map.create) "a" "1") "b" "2")]
+                  (Map.remove! &m "a")
+                  (Map.length &m))
+                "remove! leaves other entries"
+  )
+  (assert-equal test
+                true
+                (Map.all? &(fn [k v] (or (Int.even? @k) @v)) &{1 true 2 false 4 false})
+                "Map.all? works I"
+  )
+  (assert-equal test
+                false
+                (Map.all? &(fn [k v] (or (Int.even? @k) @v)) &{1 true 2 false 5 false})
+                "Map.all? works II"
+  )
+  (assert-equal test
+                true
+                (Map.= &{1 2 3 4} &{1 2 3 4})
+                "Map.= works I"
+  )
+  (assert-equal test
+                false
+                (Map.= &{1 2 3 4} &{1 2 3 5})
+                "Map.= works II"
+  )
+  (assert-equal test
+                false
+                (Map.= &{1 2 3 4} &{1 2})
+                "Map.= works III"
+  )
+  (assert-equal test
+                true
+                ;; 256 and 0 should hash to the same value modulo the default size
+                ;; this means that these two maps aren't equal byte-for-byte
+                (Map.= &(Map.put (Map.put {} &0 &1) &256 &2)
+                       &(Map.put (Map.put {} &256 &2) &0 &1))
+                "Map.= works IV"
+  )
+  (assert-equal test
+                2
+                (Map.length &(Map.from-array [(Pair.init 1 2)
+                                              (Pair.init 3 4)]))
+                "creating a map from an array works"
+  )
+  (assert-equal test
+                "{ 1 2 }"
+                &(str &(Map.from-array [(Pair.init 1 2)]))
+                "stringification works I"
+  )
+  (assert-equal test
+                "{ @\"hi\" @\"bye\" }"
+                &(str &(Map.from-array [(Pair.init @"hi" @"bye")]))
+                "stringification works II"
+  )
+  (assert-equal test
+                &[(Pair.init 1 2)]
+                &(Map.to-array &(Map.put (Map.create) &1 &2))
+                "Map.to-array works 1"
+  )
+  (assert-equal test
+                2
+                (Array.length &(Map.to-array &(Map.from-array [(Pair.init 1 2)
+                                                               (Pair.init 3 4)])))
+                "Map.to-array works 2"
+  )
+  (assert-equal test
+                "{ 1 12 3 34 }"
+                &(str &(Map.endo-map &(fn [k v] (+ @v (* 10 @k)))
+                                     {1 2 3 4}))
+                "endo-map works"
+  )
+  (assert-equal test
+                641
+                (Map.kv-reduce &(fn [sum k v] (+ sum (+ (* 100 @k) (* 10 @v))))
+                               1
+                               &{1 1 2 1 3 2})
+                "kv-reduce works"
+  )
+  (assert-equal test
+                &[1 2 3]
+                &(Map.keys &{1 1 2 1 3 2})
+                "keys works"
+  )
+  (assert-equal test
+                &[1 1 2]
+                &(Map.vals &{1 1 2 1 3 2})
+                "vals works"
+  )
+  (assert-equal test
+                3
+                (Map.get &{(Pair.init 1 2) 3} &(Pair.init 1 2))
+                "Pairs work as keys"
+  )
+  (assert-equal test
+                &{1 @"hi" 2 @"bye"}
+                &(Map.reverse &{@"hi" 1 @"bye" 2})
+                "reverse works"
+  )
+  (assert-equal test
+                &{1 @"hi" 2 @"bye" 3 @"!"}
+                &(Map.merge {1 @"bye" 3 @"!"} &{2 @"bye" 1 @"hi"})
+                "merge works"
+  )
+  (assert-equal test
+                &{1 3 2 4}
+                &(let-do [m {1 2}]
+                  (Map.update-with-default! &m &1 &Int.inc 0)
+                  (Map.update-with-default! &m &2 &Int.inc 3)
+                  m)
+                "update-with-default! works"
+  )
+  (assert-equal test
+                12
+                (do
+                  (set! for-each-sum 0)
+                  (Map.for-each &(Map.from-array [(Pair.init-from-refs &1 &2) (Pair.init-from-refs &3 &4) (Pair.init-from-refs &5 &6)])
+                                &(fn [k v] (set! for-each-sum (+ for-each-sum @v))))
+                  for-each-sum)
+                "for-each works"
+  )
+  (assert-true test
+               (let-do [s (Set.create)]
+                 (Set.put! &s "1")
+                 (Set.contains? &s "1"))
+               "put! works"
+  )
+  (assert-equal test
+                1
+                (Set.length &(Set.put (Set.create) "1"))
+                "length works"
+  )
+  (assert-equal test
+                2
+                (Set.length &(Set.put (Set.put (Set.create) "1") "2"))
+                "length works"
+  )
+  (assert-equal test
+                1
+                (Set.length &(Set.put (Set.put (Set.create) "1") "1"))
+                "putting the same element twice doesn't increase size"
+  )
+  (assert-equal test
+                0
+                (Set.length &(the (Set Int) (Set.create)))
+                "length works on empty map"
+  )
+  (assert-equal test
+                false
+                (Set.contains? &(the (Set String) (Set.create)) "1")
+                "contains? works on empty map"
+  )
+  (assert-equal test
+                true
+                (Set.contains? &(Set.put (Set.create) "1") "1")
+                "contains? works"
+  )
+  (assert-equal test
+                true
+                (Set.contains? &(Set.put (Set.create) &-7) &-7)
+                "contains? works with negative keys"
+  )
+  (assert-equal test
+                true
+                (Set.empty? &(the (Set Int) (Set.create)))
+                "empty? works on empty map"
+  )
+  (assert-equal test
+                false
+                (Set.empty? &(Set.put (Set.create) "1"))
+                "empty? works"
+  )
+  (assert-equal test
+                true
+                (Set.empty? &(Set.remove (Set.put (Set.create) "1") "1"))
+                "remove works"
+  )
+  (assert-equal test
+                true
+                (Set.all? &(fn [i] (Int.even? @i)) &(Set.from-array &[2 4 6]))
+                "Set.all? works I"
+  )
+  (assert-equal test
+                false
+                (Set.all? &(fn [i] (Int.even? @i)) &(Set.from-array &[2 4 7]))
+                "Set.all? works II"
+  )
+  (assert-equal test
+                true
+                (Set.all? &(fn [i] false) &(the (Set Int) (Set.create)))
+                "Set.all? works on empty set"
+  )
+  (assert-equal test
+                true
+                (Set.subset? &(Set.from-array &[1 2]) &(Set.from-array &[1 2 3]))
+                "subset? works"
+  )
+  (assert-equal test
+                false
+                (Set.subset? &(Set.from-array &[1 2 3]) &(Set.from-array &[1 2]))
+                "subset? works II"
+  )
+  (assert-equal test
+                true
+                (Set.= &(Set.from-array &[1 3 5]) &(Set.from-array &[1 3 5]))
+                "Set.= works"
+  )
+  (assert-equal test
+                false
+                (Set.= &(Set.from-array &[1 3]) &(Set.from-array &[1 3 5]))
+                "Set.= works II"
+  )
+  (assert-equal test
+                false
+                (Set.= &(Set.from-array &[1 3 5]) &(Set.from-array &[1 3]))
+                "Set.= works III"
+  )
+  (assert-equal test
+                false
+                (Set.= &(Set.from-array &[1 3 5]) &(Set.from-array &[1 4 5]))
+                "Set.= works IV"
+  )
+  (assert-equal test
+                61
+                (Set.reduce &(fn [state i] (+ state (* 10 @i)))
+                            1
+                            &(Set.from-array &[1 2 3]))
+                "reduce works"
+  )
+  (assert-equal test
+                &(Set.from-array &[3 5])
+                &(Set.intersection &(Set.from-array &[1 3 5]) &(Set.from-array &[3 5 7]))
+                "intersection works"
+  )
+  (assert-equal test
+                &(Set.from-array &[1 3 5 7])
+                &(Set.union &(Set.from-array &[1 3 5]) &(Set.from-array &[3 5 7]))
+                "union works"
+  )
+  (assert-equal test
+                &(Set.from-array &[1])
+                &(Set.difference &(Set.from-array &[1 3 5]) &(Set.from-array &[3 5 7]))
+                "difference works"
+  )
+  (assert-equal test
+                "{ @\"bye\" @\"hi\" }"
+                &(str &(Set.from-array &[@"hi" @"bye"]))
+                "stringification works"
+  )
+  (assert-equal test
+                "{ 2 }"
+                &(str &(Set.from-array &[2]))
+                "stringification with ints"
+  )
+  (assert-equal test
+                &[1]
+                &(Set.to-array &(Set.put (Set.create) &1))
+                "Set.to-array works 1"
+  )
+  (assert-equal test
+                2
+                (Array.length &(Set.to-array &(Set.from-array &[1 2])))
+                "Set.to-array works 2"
+  )
+  (assert-true test
+               (let-do [s (Bag.create)]
+                 (Bag.put! &s "1")
+                 (Bag.contains? &s "1"))
+               "put! works"
+  )
+  (assert-equal test
+                1
+                (Bag.length &(Bag.put (Bag.create) "1"))
+                "length works"
+  )
+  (assert-equal test
+                2
+                (Bag.length &(Bag.put (Bag.put (Bag.create) "1") "2"))
+                "length works"
+  )
+  (assert-equal test
+                2
+                (Bag.length &(Bag.put (Bag.put (Bag.create) "1") "1"))
+                "putting the same element twice increases size"
+  )
+  (assert-equal test
+                0
+                (Bag.length &(the (Bag Int) (Bag.create)))
+                "length works on empty bag"
+  )
+  (assert-equal test
+                false
+                (Bag.contains? &(the (Bag String) (Bag.create)) "1")
+                "contains? works on empty map"
+  )
+  (assert-equal test
+                true
+                (Bag.contains? &(Bag.put (Bag.create) "1") "1")
+                "contains? works"
+  )
+  (assert-equal test
+                true
+                (Bag.contains? &(Bag.put (Bag.create) &-7) &-7)
+                "contains? works with negative keys"
+  )
+  (assert-equal test
+                true
+                (Bag.empty? &(the (Bag Int) (Bag.create)))
+                "empty? works on empty bag"
+  )
+  (assert-equal test
+                false
+                (Bag.empty? &(Bag.put (Bag.create) "1"))
+                "empty? works"
+  )
+  (assert-equal test
+                true
+                (Bag.empty? &(Bag.remove (Bag.put (Bag.create) "1") "1"))
+                "remove works"
+  )
+  (assert-equal test
+                true
+                (Bag.all? &(fn [i] (Int.even? @i)) &(Bag.from-array &[2 4 6 6]))
+                "Bag.all? works I"
+  )
+  (assert-equal test
+                false
+                (Bag.all? &(fn [i] (Int.even? @i)) &(Bag.from-array &[2 4 7]))
+                "Bag.all? works II"
+  )
+  (assert-equal test
+                true
+                (Bag.all? &(fn [i] false) &(the (Bag Int) (Bag.create)))
+                "Bag.all? works on empty set"
+  )
+  (assert-equal test
+                true
+                (Bag.= &(Bag.from-array &[1 3 5]) &(Bag.from-array &[1 3 5]))
+                "Bag.= works"
+  )
+  (assert-equal test
+                false
+                (Bag.= &(Bag.from-array &[1 3]) &(Bag.from-array &[1 3 5]))
+                "Bag.= works II"
+  )
+  (assert-equal test
+                false
+                (Bag.= &(Bag.from-array &[1 3 5]) &(Bag.from-array &[1 3]))
+                "Bag.= works III"
+  )
+  (assert-equal test
+                false
+                (Bag.= &(Bag.from-array &[1 3 5]) &(Bag.from-array &[1 4 5]))
+                "Bag.= works IV"
+  )
+  (assert-equal test
+                71
+                (Bag.reduce &(fn [state i] (+ state (* 10 @i)))
+                            1
+                            &(Bag.from-array &[1 2 3 1]))
+                "reduce works"
+  )
+  (assert-equal test
+                "(Bag @\"bye\" @\"hi\" @\"hi\")"
+                &(str &(Bag.from-array &[@"hi" @"bye" @"hi"]))
+                "stringification works"
+  )
+  (assert-equal test
+                &[1]
+                &(Bag.to-array &(Bag.put (Bag.create) &1))
+                "Bag.to-array works 1"
+  )
+  (assert-equal test
+                3
+                (Array.length &(Bag.to-array &(Bag.from-array &[1 2 1])))
+                "Bag.to-array works 2"
+  )
+  (assert-dynamic-equal test
+                       '(Map String Int)
+                       (type {@"test" 1})
+                       "no clash on map literal with copied value"
+  )
+  (assert-dynamic-equal test
+                       '(Map Int Int)
+                       (type {1 @&1})
+                       "no clash on map literal with copied ref"
+  ))

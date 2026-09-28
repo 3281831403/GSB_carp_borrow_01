@@ -1,0 +1,403 @@
+(use String)
+
+(load "Test.carp")
+(use Test)
+
+(deftest test
+  (assert-true test
+                (= @"hello world" @"hello world")
+                "string = works as expected I")
+  (assert-true test
+                (= "hello world" "hello world")
+                "string = works as expected II")
+  (assert-true test
+                (/= @"hello world" @"bob")
+                "string /= works as expected I")
+  (assert-true test
+                (/= "hello world" "bob")
+                "string /= works as expected II")
+  (assert-true test
+                (< @"aaaa" @"aaab")
+                "string < works as expected I")
+  (assert-true test
+                (< "aaaa" "aaab")
+                "string < works as expected II")
+  (assert-true test
+                (> @"aaab" @"aaaa")
+                "string > works as expected I")
+  (assert-true test
+                (> "aaab" "aaaa")
+                "string > works as expected II")
+  (assert-equal test
+                "true"
+                &(str true)
+                "str on true works as expected")
+  (assert-equal test
+                "false"
+                &(str false)
+                "str on false works as expected")
+  (assert-equal test
+                \s
+                (char-at "lisp" 2)
+                "char-at works as expected")
+  (assert-equal test
+                \s
+                (head "silk")
+                "head works as expected")
+  (assert-equal test
+                "ilk"
+                &(tail "silk")
+                "tail works as expected")
+  (assert-equal test
+                "sshello"
+                &(pad-left 7 \s "hello")
+                "pad-left works as expected")
+  (assert-equal test
+                "helloss"
+                &(pad-right 7 \s "hello")
+                "pad-right works as expected")
+  (assert-equal test
+                5
+                (count-char "lisssssp" \s)
+                "count-char works as expected")
+  (assert-equal test
+                "olleh"
+                &(reverse "hello")
+                "reverse works as expected")
+  (assert-equal test
+                false
+                (empty? "lisp")
+                "empty? returns false on non-empty string")
+  (assert-true test
+               (empty? "")
+               "empty? returns true on empty string")
+  (assert-true test
+               (empty? &(the String (zero)))
+               "empty? returns true on (zero)")
+  (assert-equal test
+                &[\e \r \i \k]
+                &(chars "erik")
+                "chars works as expected")
+  (assert-equal test
+                "erik"
+                &(from-chars &[\e \r \i \k])
+                "from-chars works as expected")
+  (assert-equal test
+                "edan"
+                &(slice "svedang" 2 6)
+                "slice works as expected")
+  (assert-equal test
+                "sved"
+                &(prefix "svedang" 4)
+                "prefix works as expected")
+  (assert-equal test
+                "dang"
+                &(suffix "svedang" 3)
+                "suffix works as expected")
+  (assert-equal test
+                "😲😲😲😲"
+                &(suffix "😲😲😲😲😲" 1)
+                "suffix works as expected II")
+  (assert-true test
+               (ends-with? "heller" "ler")
+               "ends-with? works as expected")
+  (assert-true test
+               (ends-with? "ller" "ler")
+               "ends-with? works (regression test for #157)")
+  (assert-true test
+               (starts-with? "heller" "hell")
+               "starts-with? works as expected")
+  (assert-true test
+               (in? "metacarpenter" "carp")
+               "in? works on matching pattern")
+  (assert-false test
+                (in? "metabolism" "carp")
+                "in? works on non-matching pattern")
+  (assert-true test
+               (upper? "I AM SCREAMING!")
+               "upper? works on matching pattern")
+  (assert-false test
+                (upper? "I am not screaming.")
+                "upper? works on non-matching pattern")
+  (assert-true test
+               (lower? "i am not screaming.")
+               "lower? works on matching pattern")
+  (assert-false test
+                (lower? "I am not screaming!")
+                "lower? works on non-matching pattern")
+  (assert-true test
+               (num? "11123456789123")
+               "num? works on matching pattern")
+  (assert-false test
+                (num? "111l23456789123")
+                "num? works on non-matching pattern")
+  (assert-true test
+               (alpha? "abcdefghijklmz")
+               "alpha? works on matching pattern")
+  (assert-false test
+                (alpha? "abcdefghijklm1234567")
+                "alpha? works on non-matching pattern")
+  (assert-true test
+               (alphanum? "abcdefghijklm1234567")
+               "alphanum? works on matching pattern")
+  (assert-false test
+                (alphanum? "abcdefghijklm1234567?")
+                "alphanum? works on non-matching pattern")
+  (assert-true test
+               (hex? "c0ffee")
+               "hex? works on matching pattern")
+  (assert-false test
+                (hex? "c0ffeebar")
+                "hex? works on non-matching pattern")
+  (assert-equal test
+                "string  "
+                &(trim-left "   string  ")
+                "trim-left works as expected")
+  (assert-equal test
+                "   string"
+                &(trim-right "   string  ")
+                "trim-right works as expected")
+  (assert-equal test
+                "string"
+                &(trim "   string  ")
+                "trim works as expected")
+  (assert-equal test
+                "string"
+                &(chomp "string\n")
+                "chomp works as expected I")
+  (assert-equal test
+                "string\n"
+                &(chomp "string\n\n")
+                "chomp works as expected II")
+  (assert-equal test
+                "string"
+                &(chomp "string\r\n")
+                "chomp works as expected III")
+  (assert-equal test
+                "string"
+                &(chomp "string\r")
+                "chomp works as expected IV")
+  (assert-equal test
+                "too much whitespace."
+                &(collapse-whitespace "too   much  whitespace.")
+                "collapse-whitespace works as expected")
+  (assert-equal test
+                &[@"erik" @"sved" @"hej" @"foo"]
+                &(words "erik sved\nhej\tfoo")
+                "words works correctly I")
+  (assert-equal test
+                &[@"erik" @"sved" @"hej" @"foo"]
+                &(words "erik sved\n\nhej\tfoo")
+                "words works correctly II")
+  (assert-equal test
+                &[@"erik" @"sved" @"hej" @"foo"]
+                &(lines "erik\nsved\nhej\nfoo")
+                "lines works correctly")
+  (assert-equal test
+                &[@"erik" @"sved" @"hej" @"foo"]
+                &(split-by "erikmsvedlhejxfoo" &[\m \l \x])
+                "split-by works correctly")
+  (assert-equal test
+                "hello world"
+                &(append "hello " "world")
+                "append works correctly")
+  (assert-equal test
+                "hello world"
+                &(concat &[@"hello" @" " @"world"])
+                "concat works correctly")
+
+  (assert-equal test
+                "hello world"
+                &(join "" &[@"hello" @" " @"world"])
+                "join works correctly I")
+  (assert-equal test
+                "hello world"
+                &(join " " &[@"hello" @"world"])
+                "join works correctly II")
+  (assert-equal test
+                "hello aaaa there aaaa world"
+                &(join " aaaa " &[@"hello" @"there" @"world"])
+                "join works correctly III")
+  (assert-equal test
+                ""
+                &(join " aaaa " &[])
+                "join works correctly IV")
+  (assert-equal test
+                "hello there world"
+                &(join-with-char \  &[@"hello" @"there" @"world"])
+                "join-with-char works correctly I")
+  (assert-equal test
+                "hello, there, world"
+                &(join-with-char \, &[@"hello" @" there" @" world"])
+                "join-with-char works correctly II")
+  (assert-equal test
+                ""
+                &(join-with-char \, &[])
+                "join-with-char works correctly III")
+  (assert-equal test
+                "hellohellohello"
+                &(repeat 3 "hello")
+                "repeat works correctly")
+  (assert-equal test
+                "bcde"
+                &(let-do [str @"aaaa"]
+                         (string-set! &str 0 \b)
+                         (string-set! &str 1 \c)
+                         (string-set! &str 2 \d)
+                         (string-set! &str 3 \e)
+                         str)
+                "string-set! works correctly")
+  (assert-equal test
+                "aaaabcdeaq"
+                &(let-do [str @"aaaaaaaaaa"]
+                         (string-set-at! &str 4 "bcde")
+                         (string-set-at! &str 9 "q")
+                         (string-set-at! &str 0 "")
+                         str)
+                "string-set-at! works correctly")
+  (assert-equal test
+                "aaaaaaaaaa"
+                &(allocate 10 \a)
+                "allocate works correctly I")
+  (assert-equal test
+                ""
+                &(allocate 0 \a)
+                "allocate works correctly II")
+  (assert-equal test
+                5
+                (length &(allocate 5 \a))
+                "allocate works correctly III")
+  (assert-equal test
+                2
+                (index-of "abcde" \c)
+                "index-of works correctly I")
+  (assert-equal test
+                4
+                (index-of "abcde" \e)
+                "index-of works correctly II")
+  (assert-equal test
+                -1
+                (index-of "abcde" \f)
+                "index-of works correctly III")
+  (assert-equal test
+                0
+                (index-of "abcde" \a)
+                "index-of works correctly IIII")
+  (assert-equal test
+                -1
+                (index-of-from "abcde" \a 0)
+                "index-of-from works correctly I")
+  (assert-equal test
+                0
+                (index-of-from "abcde" \a -1)
+                "index-of-from works correctly II")
+  (assert-equal test
+                2
+                (index-of-from "abcab" \c 1)
+                "index-of-from works correctly III")
+  (assert-equal test
+                -1
+                (index-of-from "abcab" \c 2)
+                "index-of-from works correctly IV")
+  (assert-equal test
+                5
+                (index-of-from "abcabc" \c 2)
+                "index-of-from works correctly IV")
+  (assert-equal test
+                true
+                (contains? "abcabc" \c)
+                "contains? works correctly I")
+  (assert-equal test
+                false
+                (contains? "abab" \c)
+                "contains? works correctly II")
+  (assert-equal test
+                2
+                (index-of-string "abcde" "cd")
+                "index-of-string works correctly I")
+  (assert-equal test
+                0
+                (index-of-string "abcde" "ab")
+                "index-of-string works correctly II")
+  (assert-equal test
+                -1
+                (index-of-string "abcde" "xyz")
+                "index-of-string works correctly III")
+  (assert-equal test
+                0
+                (index-of-string "abcde" "")
+                "index-of-string empty needle returns 0")
+  (assert-equal test
+                0
+                (index-of-string "abcabc" "abc")
+                "index-of-string finds first occurrence")
+  (assert-equal test
+                true
+                (contains-string? "hello world" "world")
+                "contains-string? works correctly I")
+  (assert-equal test
+                false
+                (contains-string? "hello world" "xyz")
+                "contains-string? works correctly II")
+  (assert-ref-equal test
+                    [104b 101b 108b 108b 111b]
+                    (to-bytes "hello")
+                    "to-bytes works correctly")
+  (assert-equal test
+                "hellö"
+                &(from-bytes &[104b 101b 108b 108b 195b 182b])
+                "from-bytes works correctly")
+  (assert-equal test
+                &[\� \�]
+                &(chars &(from-bytes &[255b 255b]))
+                "check for invalid UTF-8 sequences")
+  (assert-equal test
+                "hällo wörld"
+                &(ascii-to-lower "HälLo WöRld")
+                "ascii-to-lower works for valid UTF-8" )
+  (assert-equal test
+                "HäLLO WöRLD"
+                &(ascii-to-upper "HälLo WöRld")
+                "ascii-to-upper works for valid UTF-8" )
+  (assert-equal test
+                "@\"\\\"h\\\"i\\\"\""
+                &(prn "\"h\"i\"")
+                "prn works on quoted strings")
+  (assert-equal test
+                "hello"
+                &(from-cstr (cstr "hello"))
+                "cstr and from-cstr work as expected")
+  (assert-equal test
+                "hello"
+                &(str "hello")
+                "str identity works as expected")
+  (assert-equal test
+                "hello 42"
+                &(format "hello %d" 42)
+                "format works as expected")
+  (assert-equal test
+                "hello"
+                &(copy "hello")
+                "copy works as expected")
+  (assert-equal test
+                10
+                (sum-length &[@"hello" @"world"])
+                "sum-length works as expected")
+  (assert-true test
+               (allocated? &(allocate 5 \a))
+               "allocated? returns true for successful allocation")
+  (assert-true test
+               (Dynamic.String.empty? "")
+               "Dynamic.String.empty? returns true for empty string")
+  (assert-false test
+                (Dynamic.String.empty? "abc")
+                "Dynamic.String.empty? returns false for non-empty string")
+  (assert-equal test
+                3
+                (Dynamic.length (Dynamic.String.to-list "abc"))
+                "Dynamic.String.to-list works as expected (check length)")
+  (assert-equal test
+                3
+                (Dynamic.length (Dynamic.String.to-array "abc"))
+                "Dynamic.String.to-array works as expected (check length)")
+)

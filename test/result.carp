@@ -1,0 +1,184 @@
+(load "Test.carp")
+
+(use-all Test Result)
+
+(def test-inspect-val 0)
+
+(deftest test
+  (assert-true test
+               (success? &(the (Result Int String) (Success 1)))
+               "success? works with Success"
+  )
+  (assert-false test
+                (success? &(the (Result Int String) (Error @"error")))
+                "success? works with Error"
+  )
+  (assert-true test
+               (error? &(the (Result Int String) (Error @"error")))
+               "error? works with Error"
+  )
+  (assert-false test
+                (error? &(the (Result Int String) (Success 1)))
+                "error? works with Success"
+  )
+  (assert-equal test
+                &(Success 1)
+                &(apply (Success 0) &Int.inc &Int.dec)
+                "apply works with Success"
+  )
+  (assert-equal test
+                &(Error -1)
+                &(apply (Error 0) &Int.inc &Int.dec)
+                "apply works with Error"
+  )
+  (assert-true test
+               (error? &(map (Error @"hi") &Int.inc))
+               "map works with Error"
+  )
+  (assert-equal test
+                &(Success 2)
+                &(map (the (Result Int String) (Success 1)) &Int.inc)
+                "map works with Success"
+  )
+  (assert-true test
+               (success? &(map-error (Success @"hi") &Int.inc))
+               "map-error works with Success"
+  )
+  (assert-equal test
+                &(Error 2)
+                &(map-error (the (Result String Int) (Error 1)) &Int.inc)
+                "map-error works with Error"
+  )
+  (assert-true test
+               (error? &(and-then (Error @"hi") &(fn [x] (Success (Int.inc x)))))
+               "and-then works with Error"
+  )
+  (assert-equal test
+                &(Success 2)
+                &(and-then (the (Result Int String) (Success 1))
+                           &(fn [x] (Success (Int.inc x))))
+                "and-then works with Success"
+  )
+  (assert-equal test
+                2
+                (unwrap-or-zero (the (Result Int String) (Success 2)))
+                "unwrap-or-zero works with Success"
+  )
+  (assert-equal test
+                0
+                (unwrap-or-zero (Error @"error"))
+                "unwrap-or-zero works with Error"
+  )
+  (assert-equal test
+                &(Error 5)
+                &(or-else (the (Result Int String) (Error @"error"))
+                          &(fn [x] (Error (String.length &x))))
+                "or-else works with Error"
+  )
+  (assert-equal test
+                &(Success 1)
+                &(or-else (Success 1) &(fn [x] (Error (String.length &x))))
+                "or-else works with Success"
+  )
+  (assert-equal test
+                5
+                (unwrap-or-else (the (Result Int String) (Error @"error"))
+                                &(fn [s] (String.length &s)))
+                "unwrap-or-else works with Error"
+  )
+  (assert-equal test
+                1
+                (unwrap-or-else (Success 1) &(fn [s] (String.length &s)))
+                "unwrap-or-else works with Success"
+  )
+  (assert-equal test
+                1
+                (unsafe-from-success (the (Result Int String) (Success 1)))
+                "unsafe-from-success works with Success"
+  )
+  (assert-equal test
+                1
+                (from-success (the (Result Int String) (Success 1)) 0)
+                "from-success works with Success"
+  )
+  (assert-equal test
+                0
+                (from-success (Error @"error") 0)
+                "from-success works with Error"
+  )
+  (assert-equal test
+                "error"
+                &(unsafe-from-error (the (Result Int String) (Error @"error")))
+                "unsafe-from-Error works with Error"
+  )
+  (assert-equal test
+                "error"
+                &(from-error (the (Result Int String) (Error @"error"))
+                             @"success")
+                "from-error works with Error"
+  )
+  (assert-equal test
+                "success"
+                &(from-error (Success 1) @"success")
+                "from-error works with Success"
+  )
+  (assert-equal test
+                &(Maybe.Just 1)
+                &(to-maybe (the (Result Int String) (Success 1)))
+                "to-maybe works with Success"
+  )
+  (assert-equal test
+                &(Maybe.Nothing)
+                &(to-maybe (the (Result Int String) (Error @"error")))
+                "to-maybe works with Error"
+                )
+
+  (assert-equal test
+                123
+                (match (the (Result (Result Int String) String) (Success (Success 123)))
+                  (Success (Error _)) 0
+                  (Error _) 0
+                  (Success (Success x)) x)
+                "matching on nested results"
+  )
+
+  (assert-equal test
+                &(Result.Success 10)
+                &(flatten (Success (the (Result Int Int) (Success 10))))
+                "flatten works with Success Success")
+  (assert-equal test
+                &(the (Result Int Int) (Error 0))
+                &(flatten (the (Result (Result Int Int) Int) (Success (Error 0))))
+                "flatten works with Success Error")
+
+  (assert-equal test
+                10
+                (expect (the (Result Int Int) (Success 10)) "should not fail")
+                "expect works with Success")
+
+  (do
+    (ignore (inspect (the (Result Int Int) (Success 10)) &(fn [v] (set! test-inspect-val @v))))
+    (assert-equal test 10 test-inspect-val "inspect works with Success"))
+
+  (do
+    (ignore (inspect-error (the (Result Int Int) (Error 10)) &(fn [v] (set! test-inspect-val @v))))
+    (assert-equal test 10 test-inspect-val "inspect-error works with Error"))
+
+  (assert-equal test
+                20
+                (map-or (the (Result Int Int) (Success 10)) 0 &(fn [v] (* v 2)))
+                "map-or works with Success")
+  (assert-equal test
+                0
+                (map-or (the (Result Int Int) (Error 10)) 0 &(fn [v] (* v 2)))
+                "map-or works with Error")
+
+  (assert-equal test
+                20
+                (map-or-else (the (Result Int Int) (Success 10)) &(fn [] 0) &(fn [v] (* v 2)))
+                "map-or-else works with Success")
+  (assert-equal test
+                0
+                (map-or-else (the (Result Int Int) (Error 10)) &(fn [] 0) &(fn [v] (* v 2)))
+                "map-or-else works with Error")
+)

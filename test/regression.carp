@@ -1,0 +1,207 @@
+(relative-include "fixture_foo.h")
+(load "Test.carp")
+(load "Vector.carp")
+
+; void definitions should get elided (issue #1296)
+(def is-void ())
+
+; this is a test-only module to test module resolution (see #288)
+(defmodule Foo
+  (register init (Fn [] Int) "fooInit")
+)
+
+; test whether sumtypes with single cases get classified correctly
+(deftype (SumT x)
+    (SingleC [x]))
+
+; make sure nested lambdas don't break again (issue #342)
+(defn nested-lambdas []
+  (let [f (fn [x] ((fn [y] (+ x y))
+                   1))]
+    (f 1)))
+
+; make sure let bindings get updated in the right scope
+(defmacro let-and-set []
+  (let-do [x 1]
+    (let [] (set! x 2))
+    (= x 2)))
+
+; make sure that match-ref doesn't delete references (issue #843)
+(deftype StrangeThings
+  (Piff [String])
+  (Puff [String]))
+
+; set! works on arguments (issue #1144)
+(defndynamic set-args [i]
+  (do (set! i (+ i 2)) i))
+
+(defmacro call-set-args [] (set-args 2))
+
+(defn match-ref-1 []
+  (let [xs [(StrangeThings.Puff @"ABCD")]]
+    (match-ref (Array.unsafe-nth &xs 0)
+      (StrangeThings.Piff x) false
+      _ true)))
+
+; quoted macros do not get evaluated if not called
+(defmacro invalid []
+  '(cond x 1))
+
+(use-all Test Vector2 Foo)
+
+;; importing a module and its submodules should not duplicate root bindings (#1455)
+(defmodule DuplicateUseRoot
+  (defn unique-fn [x] x)
+  (defmodule ChildA
+    (defn a [] 0)
+    (defn from-a [x] (DuplicateUseRoot.unique-fn x)))
+  (defmodule ChildB
+    (defn b [] 0)
+    (defn from-b [x] (DuplicateUseRoot.unique-fn x))))
+
+(use DuplicateUseRoot)
+(use DuplicateUseRoot.ChildA)
+(use DuplicateUseRoot.ChildB)
+
+(defn duplicate-use-root-resolution []
+  (the Int (unique-fn 42)))
+
+(defn test-unreachable []
+  (match (the (Maybe Int) (Maybe.Nothing))
+    (Maybe.Nothing) true
+    _ (unreachable "test unreachable")))
+
+;; defining function with def (not defn)
+(defn duplicate-arg [f]
+  (fn [x] (f x x)))
+
+(def double (duplicate-arg +))
+
+(defn defining-function-with-def []
+  (double 3))
+
+;; using special symbol as binder name (issue #659)
+(defndynamic special-symbol-as-binder []
+  (let [c (car (list 1 2 3))]
+     (list c)))
+
+;; dynamic closure referring to itself (issue #1133)
+(defmacro dynamic-closure-referring-to-itself []
+  (let [f (fn [x]
+            (if (= x 1)
+              x
+              (f (dec x))))]
+    (f 10)))
+
+(defn dynamic-closure-referring-to-itself-test []
+  (dynamic-closure-referring-to-itself))
+
+;; avoid unification failure (issue #521)
+(deftype (HitRecord a) [t a])
+(deftype (CurrentHit a) [hr (Maybe (HitRecord a))])
+
+;; create dependencies (deleters) for Map when only referring to it with 'the' (issue 1261)
+(deftype AType [s String])
+(defn weird [m]
+   (the (Map String AType) m))
+
+;; nested polymorphic types are resolved and emitted (#1293)
+(defmodule Bar 
+  (deftype (Baz a) [it a])
+  (deftype (Qux a) [it (Bar.Baz a)])
+)
+
+(deftype (PolyNest a) [it (Bar.Baz a)])
+
+(defn poly-nest-one [x] (Bar.Baz x))
+(defn poly-nest-two [x] (Bar.Qux.init (Bar.Baz x)))
+(defn poly-nest-three [x] (PolyNest (Bar.Baz x)))
+
+;; struct field names are mangled correctly (#1378)
+(deftype Mangled 
+  [short Int  ;; c reserved word
+   default-value String ;; invalid var name symbol (-)
+  ]
+ )
+
+; set! on a unit-typed variable should not emit broken C (issue #1542)
+(defn set-unit []
+  (let [x ()]
+    (do
+      (set! x ())
+      1)))
+
+(deftest test
+  (assert-equal test
+                1
+                (init)
+                "test that the right module gets resolved")
+  (assert-equal test
+                \\
+                (String.char-at "\\" 0)
+                "test that strings get escaped correctly")
+  (assert-equal test
+                Int.MAX
+                @&Int.MAX
+                "test that the address of Int.MAX can be taken")
+  (assert-equal test
+                &(Result.Error (System.strerror System.ENOENT))
+                &(IO.read->EOF "foobar")
+                "test that reading from a non existing file fails")
+  (assert-equal test
+                "(SingleC 1)"
+                &(str &(SumT.SingleC 1))
+                "test that sumtypes with single cases work")
+  (assert-equal test
+                2
+                (nested-lambdas)
+                "test that nested lambdas can use captured values")
+  (assert-equal test
+                4
+                (call-set-args)
+                "test that set! works on dynamic function arguments")
+  (assert-true test
+               (let-and-set)
+               "test that nested let bindings and set! interplay nicely")
+  (assert-true test
+               (match-ref-1)
+               "test that match-ref doesn't delete references")
+  (assert-true test
+               (test-unreachable)
+               "test that unreachable works (as best possible)")
+  (assert-equal test
+                6
+                (defining-function-with-def)
+                "test that defining function with def works")
+  (assert-equal test
+                1
+                (dynamic-closure-referring-to-itself-test)
+                "test that dynamic closure can refer to itself")
+  (assert-equal test
+                2
+                @(Bar.Baz.it &(poly-nest-one 2))
+                "test that polymorphic types in modules are emitted")
+  (assert-equal test
+                42
+                (duplicate-use-root-resolution)
+                "test that using nested modules does not duplicate root symbol lookups")
+  (assert-equal test
+                2
+                @(Bar.Baz.it (Bar.Qux.it &(poly-nest-two 2)))
+                "test that polymorphic types in modules are emitted and can
+                refer to each other")
+  (assert-equal test
+                2
+                @(Bar.Baz.it (PolyNest.it &(poly-nest-three 2)))
+                "test that polymorphic types in modules can be referred to using
+                other types outside the module")
+  (assert-equal test
+    "bar" 
+    (Mangled.default-value &(Mangled.set-default-value (Mangled.init 0 @"foo")
+    @"bar"))
+    "struct field names are mangled correctly")
+  (assert-equal test
+    1
+    (set-unit)
+    "test that `set!` on a unit-typed variable compiles correctly")
+)

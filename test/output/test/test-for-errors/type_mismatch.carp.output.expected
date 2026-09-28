@@ -1,0 +1,2 @@
+type_mismatch.carp:4:13 Inferred Float, can't unify with Int.
+type_mismatch.carp:4:4 Inferred Int, can't unify with Float.

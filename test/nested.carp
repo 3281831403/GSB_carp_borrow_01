@@ -1,0 +1,34 @@
+(use Int)
+(use IO)
+
+(load "Test.carp")
+(use Test)
+
+;; Ur is created first and will not know about any other modules
+(defmodule Ur
+  (defn compare [a b]
+    (= a b)))
+
+;; Young is created later
+(deftype Young [age Int])
+
+;; A function with correct nr of args but just generic types used to really confuse the type checker:
+(defmodule Confuse
+  (defn = [a b]
+    true)
+  (implements = Confuse.=))
+
+(defmodule Young
+  (defn = [y1 y2]
+    (Int.= @(age y1) @(age y2)))
+  (implements = Young.=))
+
+;; Now I want to use 'Young.=' in with 'Ur.compare'
+(defn f []
+  (Ur.compare &(Young.init 100) &(Young.init 200)))
+
+(deftest test
+  (assert-equal test
+                false
+                (f)
+                "interfaces get resolved correctly"))
